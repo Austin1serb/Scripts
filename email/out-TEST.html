@@ -5,11 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>How's Your New Look?</title>
-    <!-- Hover styles - only work in some email clients -->
+    <!-- Example Review: click-to-reveal -->
     <style>
-      .star-link:hover {
-        color: #ffc807 !important;
+      /* Hide by default, then show when checked */
+      .rev-body {
+        max-height: 0;
+        overflow: hidden;
+       }
+
+      input.rev-toggle:checked+label+.rev-body {
+        max-height: 500px;
       }
+
+      /* large enough */
+      /* Basic styling */
+      .rev-cta {
+        display: block;
+        font: 16px/1.3 Arial, sans-serif;
+        color: #1464e6;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .rev-box {
+        font: 15px/1.5 Arial, sans-serif;
+        color: #222;
+        background: #f6f7fb;
+        margin: 20px;
+        padding: 20px 0px 20px 0px;
+        border-radius: 6px;
+      }
+
+      /* Outlook desktop fallback: show content (mso doesn't support :checked) */
     </style>
     <!--[if mso]>
       <noscript>
@@ -24,11 +51,8 @@
 
   <body style="color: #1c1c1c; margin: 0; padding: 0; background-color: #ffffff; font-family: Helvetica, Arial, sans-serif; line-height: 1.6;font-size:16px">
     <!-- hidden preheader: must be the first element in <body> -->
-    <div
-      style="display:none!important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#ffffff;max-height:0;max-width:0;opacity:0;overflow:hidden;"
-    >
-      The real test of our work isn't the day it leaves the shop, it's months
-      later......&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+    <div style="display:none;max-height:0;overflow:hidden;">
+      The real test of our work isn't the day it leaves the shop, it's months later...
     </div>
 
     <div
@@ -74,40 +98,6 @@
                 </td>
               </tr>
 
-              <!-- Example Review: click-to-reveal -->
-              <style>
-                /* Hide by default, then show when checked */
-                .rev-body {
-                  max-height: 0;
-                  overflow: hidden;
-                  transition: max-height .25s ease;
-                }
-
-                input.rev-toggle:checked+label+.rev-body {
-                  max-height: 500px;
-                }
-
-                /* large enough */
-                /* Basic styling */
-                .rev-cta {
-                  display: block;
-                  font: 16px/1.3 Arial, sans-serif;
-                  color: #1464e6;
-                  text-decoration: none;
-                  cursor: pointer;
-                }
-
-                .rev-box {
-                  font: 15px/1.5 Arial, sans-serif;
-                  color: #222;
-                  background: #f6f7fb;
-                  margin: 20px;
-                  padding: 20px 0px 20px 0px;
-                  border-radius: 6px;
-                }
-
-                /* Outlook desktop fallback: show content (mso doesn't support :checked) */
-              </style>
 
               <!-- Share your experience Card -->
               <tr>
@@ -125,7 +115,7 @@
                         <td align="right" style="padding: 10px 10px 0 0;">
                           <img
                             src="https://www.bespokeauto.org/email/google.png"
-                            alt="Google"
+                            alt="Google Icon"
                             width="40"
                             height="40"
                             style="display: block; background-color: #ffffff; padding: 6px; border-radius: 12px; border: 2px solid #e5e5e5;"
@@ -134,127 +124,42 @@
                       </tr>
                     <tr>
                       <td style="padding: 0 24px 32px 24px; text-align: center">
-                        <!-- Card Header -->
-                        <h2 style="margin: 0 0 8px 0; font-size: 36px;line-height: 38px; font-weight: 600;">
-                          Share your experience
-                          <br />
-                          with others.
-                        </h2>
-                        <p style="margin: 0 0 24px 0;color: #555555">
-                          It takes less than a minute, and makes a
-                          <span style="font-weight: 600; color: #005bff">HUGE</span>
-                          difference.
-                        </p>
-
-                        <!-- Stars with hover class -->
-                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
-                          <tr>
-                            <!-- Star 1 -->
-                            <td style="padding: 0 5px">
-                              <a
-                                href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
-                                aria-label="Rate 1 star"
-                                class="star-link"
-                                style="
-                                  display: inline-block;
-                                  padding: 5px;
-                                  text-decoration: none;
-                                  font-size: 48px;
-                                  line-height: 1;
-                                  color: #005bff;
-                                 "
-                              >
-                                ★
-                              </a>
-                            </td>
-
-                            <!-- Star 2 -->
-                            <td style="padding: 0 5px">
-                              <a
-                                href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
-                                aria-label="Rate 2 stars"
-                                class="star-link"
-                                style="
-                                  display: inline-block;
-                                  padding: 5px;
-                                  text-decoration: none;
-                                  font-size: 48px;
-                                  line-height: 1;
-                                  color: #005bff;
-                                "
-                              >
-                                ★
-                              </a>
-                            </td>
-
-                            <!-- Star 3 -->
-                            <td style="padding: 0 5px">
-                              <a
-                                href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
-                                aria-label="Rate 3 stars"
-                                class="star-link"
-                                style="
-                                  display: inline-block;
-                                  padding: 5px;
-                                  text-decoration: none;
-                                  font-size: 48px;
-                                  line-height: 1;
-                                  color: #005bff;
-                                "
-                              >
-                                ★
-                              </a>
-                            </td>
-
-                            <!-- Star 4 -->
-                            <td style="padding: 0 5px">
-                              <a
-                                href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
-                                aria-label="Rate 4 stars"
-                                class="star-link"
-                                style="
-                                  display: inline-block;
-                                  padding: 5px;
-                                  text-decoration: none;
-                                  font-size: 48px;
-                                  line-height: 1;
-                                  color: #005bff;
-                                "
-                              >
-                                ★
-                              </a>
-                            </td>
-
-                            <!-- Star 5 -->
-                            <td style="padding: 0 5px">
-                              <a
-                                href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
-                                aria-label="Rate 5 stars"
-                                class="star-link"
-                                style="
-                                  display: inline-block;
-                                  padding: 5px;
-                                  text-decoration: none;
-                                  font-size: 48px;
-                                  line-height: 1;
-                                  color: #005bff;
-                                "
-                              >
-                                ★
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-
-                        <!-- Social Proof Badge link to google review -->
-                        <a
+                        <!-- Entire card content as one link -->
+                        <a 
                           href="https://g.page/r/CenmM-Ie8Ml6EAE/review"
                           style="
-                            margin-top: 24px;
-                            display: inline-block;
                             text-decoration: none;
+                            display: block;
+                            color: inherit;
                           "
                         >
+                          <!-- Card Header -->
+                          <h2 style="margin: 0 0 8px 0; font-size: 36px;line-height: 38px; font-weight: 600; color: #1c1c1c;">
+                            Share your experience
+                            <br />
+                            with others.
+                          </h2>
+                          <p style="margin: 0 0 24px 0;color: #555555">
+                            It takes less than a minute, and makes a
+                            <span style="font-weight: 600; color: #005bff">huge</span>
+                            difference.
+                          </p>
+
+                          <!-- Stars -->
+                          <span
+                            class="star-link"
+                            style="
+                              font-size: 48px;
+                              line-height: 1;
+                              color: #005bff;
+                              letter-spacing: 10px;
+                              display: inline-block;
+                            "
+                          >
+                            ★★★★★
+                          </span>
+
+                          <!-- Social Proof Badge -->
                           <span
                             style="
                               background-color: #005bff;
@@ -263,8 +168,9 @@
                               font-size: 16px;
                               color: #ffffff;
                               display: inline-block;
-                              font-weight: 500;
+                              font-weight: 600;
                               letter-spacing: 0.5px;
+                              margin-top: 24px;
                             "
                           >
                             Join 500+ happy customers
@@ -273,10 +179,11 @@
                               font-size: 20px; 
                               padding-left: 6px;
                               padding-right: 6px;
+                              font-weight: 600;
                             ">★★★★★</span>
                             <img 
                               src="https://www.bespokeauto.org/email/external-link.png" 
-                              alt="" 
+                              alt="external link icon" 
                               width="18" 
                               height="18"
                               style="display: inline-block; vertical-align: middle; margin-left: 4px;"
@@ -293,7 +200,7 @@
                       <!--[if mso]>
                         <p style="font:16px Arial, sans-serif;margin:0 0 10px 0;"><strong>Need inspiration?</strong></p>
                         <div style="font:14px Arial, sans-serif;background:#f6f7fb;padding:12px;border-radius:6px;">
-                          I brought my Car to Bespoke Tint for Paint
+                          I brought my Vehicle to Bespoke Tint for Paint
                           Protection Film (PPF). The whole process was professional and straightforward. They helped me
                           choose the right film, and the installation was done meticulously. A great spot in Bellevue
                           for quality work without any hassle. or pushy sales peoples
@@ -336,7 +243,7 @@
                           ">
                             <img 
                               src="https://www.bespokeauto.org/email/open-menu.png" 
-                              alt="open menu" 
+                              alt="open menu icon" 
                               width="15" 
                               height="15"
                               style="display: inline-block; vertical-align: middle; margin: 0 auto;"
@@ -485,7 +392,7 @@
                                 src="https://www.bespokeauto.org/email/blue-pin.jpeg"
                                 width="32"
                                 height="32"
-                                alt=""
+                                alt="blue pin icon"
                                 style="display: block; border: 0"
                               />
                             </td>
@@ -526,7 +433,9 @@
 
                         <!-- Non-Outlook clients -->
                         <!--[if !mso]><!-->
-                        <a href="https://www.bespokeauto.org" style="display: block; text-decoration: none">
+                        <a href="https://www.bespokeauto.org" style="display: block; text-decoration: none"
+                        title="Go to Bespoke Tint & PPF Website"
+                        >
                           <div
                             style='
                               width: 100%;
@@ -538,14 +447,7 @@
                               font-size: 0;
                             '
                           >
-                            <!-- hidden img for better image caching/preload in some clients -->
-                            <img
-                              src="https://www.bespokeauto.org/email/bespoke-tint-ppf-logo.jpeg"
-                              width="600"
-                              height="115"
-                              alt="Bespoke Tint &amp; PPF Logo"
-                              style="display: block; border: 0; outline: 0; text-decoration: none; opacity: 0; width: 0; height: 0"
-                            />
+                           
                           </div>
                         </a>
                         <!--<![endif]-->

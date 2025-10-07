@@ -120,7 +120,7 @@ def get_bitrate_per_second(input_path):
 # Example usage:
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    input_video = os.path.join(current_dir, "trimmed_cropped_video.mp4")
+    input_video = os.path.join(current_dir, "image_input/solar-overview.mp4")
 
     # Get average bitrate
     mbps, bps = get_video_bitrate(input_video)

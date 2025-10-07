@@ -188,8 +188,8 @@ def optimize_to_webm(
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    input_path = current_dir + "/image_input" + "/Screen Recording-.mov"
-    output_path = current_dir + "/optimized_output" + "/hero_trimmed.webm"
+    input_path = current_dir + "/image_input" + "/solar-overview.mp4"
+    output_path = current_dir + "/optimized_output" + "/solar-overview.mp4"
 
     optimize_to_webm(
         input_path=input_path,
@@ -197,10 +197,10 @@ if __name__ == "__main__":
         start_time="00:00:00.00",
         # duration="00:00:11.00",
         crop=False,
-        width=1180,
-        height=1920,
-        fps=15,
-        crf=None,
+        width=1280,
+        height=720,
+        fps=30,
+        crf=20,
         preset="good",  #  good|realtime|best…
-        target_bitrate="150k",  # used only if crf is None
+        target_bitrate="1.5M",  # used only if crf is None
     )
