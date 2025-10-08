@@ -1,0 +1,14 @@
+# Core dependencies
+Pillow>=10.0.0
+pillow-heif>=0.13.0
+imagehash>=4.3.0
+tqdm>=4.65.0
+python-slugify>=8.0.0
+exifread>=3.0.0
+numpy>=1.24.0
+
+# Optional: Enhanced filename matching (recommended)
+rapidfuzz>=3.0.0
+
+# Optional: OpenAI for classification
+openai>=1.0.0
