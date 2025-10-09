@@ -29,12 +29,43 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from .config import IMAGE_DIR, SCRIPT_DIR
+from .config import (
+    IMAGE_DIR,
+    DEFAULT_SITE_DISTANCE_FEET,
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_BRAND,
+    DEFAULT_TIME_GAP_MINUTES,
+    DEFAULT_HASH_THRESHOLD,
+    DEFAULT_FUSE_THRESHOLD,
+    DEFAULT_MAX_EDGES,
+    DEFAULT_MODEL,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_ROTATE_CITIES,
+    DEFAULT_DRY_RUN,
+    DEFAULT_CLASSIFY,
+    DEFAULT_ASSIGN_SINGLETONS,
+)
 from .ingestion import ingest
-from .classification import classify_batches
-from .clustering import cluster_gps_only, fused_cluster
+from .classification import classify_batches, assign_singletons_batched
+from .clustering import cluster_gps_only, fused_cluster, cluster_phash_only
 from .organization import organize
 from .utils.filename import name_features
+from .utils.stats import print_clustering_stats
+
+
+def get_thumb_path(original_filename: str, work_dir: Path) -> str:
+    """Construct full absolute path to thumbnail file.
+
+    Args:
+        original_filename: Original image filename (e.g., IMG_1234.HEIC)
+        work_dir: Working directory path (e.g., .../organized/_work)
+
+    Returns:
+        Full absolute path to thumbnail (e.g., .../organized/_work/thumbs/IMG_1234.jpg)
+    """
+    stem = Path(original_filename).stem  # Get filename without extension
+    thumb_path = work_dir / "thumbs" / f"{stem}.jpg"
+    return str(thumb_path.resolve())
 
 
 def main():
@@ -45,38 +76,75 @@ def main():
     ap.add_argument(
         "--site-distance-feet",
         type=float,
-        default=300.0,
+        default=DEFAULT_SITE_DISTANCE_FEET,
         help="GPS-only site merge radius; images within this distance form one project, regardless of time",
     )
 
     ap.add_argument("run", nargs="?", help="Execute full pipeline")
     ap.add_argument("--input", required=True, help="Input folder with images")
-    ap.add_argument(
-        "--output", default=str(SCRIPT_DIR / "organized"), help="Output folder"
-    )
-    ap.add_argument("--brand", default="", help="Optional brand slug")
+    ap.add_argument("--output", default=DEFAULT_OUTPUT_DIR, help="Output folder")
+    ap.add_argument("--brand", default=DEFAULT_BRAND, help="Optional brand slug")
     ap.add_argument(
         "--time-gap-min",
         type=int,
-        default=20,
+        default=DEFAULT_TIME_GAP_MINUTES,
         help="Max minutes to keep photos in same cluster",
     )
     ap.add_argument(
         "--hash-threshold",
         type=int,
-        default=6,
+        default=DEFAULT_HASH_THRESHOLD,
         help="Max pHash distance to keep in same cluster",
     )
     ap.add_argument(
-        "--classify", action="store_true", help="Use ChatGPT multi-image classification"
-    )
-    ap.add_argument("--model", default="gpt-4o", help="OpenAI vision model")
-    ap.add_argument("--batch-size", type=int, default=12, help="Images per API batch")
-    ap.add_argument(
-        "--rotate-cities", action="store_true", help="Rotate cities if GPS missing"
+        "--classify",
+        action="store_true",
+        default=DEFAULT_CLASSIFY,
+        help="Use ChatGPT multi-image classification",
     )
     ap.add_argument(
-        "--dry-run", action="store_true", help="Do everything except copy originals"
+        "--assign-singletons",
+        action="store_true",
+        default=DEFAULT_ASSIGN_SINGLETONS,
+        help="Use AI to match singleton clusters to existing multi-photo clusters",
+    )
+    ap.add_argument("--model", default=DEFAULT_MODEL, help="OpenAI vision model")
+    ap.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help="Images per API batch",
+    )
+    ap.add_argument(
+        "--rotate-cities",
+        action="store_true",
+        dest="rotate_cities",
+        default=DEFAULT_ROTATE_CITIES,
+        help="Rotate cities if GPS missing",
+    )
+    ap.add_argument(
+        "--no-rotate-cities",
+        action="store_false",
+        dest="rotate_cities",
+        help="Don't rotate cities",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        default=DEFAULT_DRY_RUN,
+        help="Do everything except copy originals",
+    )
+    ap.add_argument(
+        "--no-dry-run",
+        action="store_false",
+        dest="dry_run",
+        help="Actually move files (not just simulate)",
+    )
+    ap.add_argument(
+        "--phash-only",
+        action="store_true",
+        help="TEST MODE: Cluster using only pHash (visual similarity), ignore filename/time",
     )
     args = ap.parse_args()
 
@@ -124,20 +192,45 @@ def main():
     # 2) Clustering
     print("\n" + "=" * 60)
     print("STEP 2: CLUSTERING")
+    if args.phash_only:
+        print("🧪 TEST MODE: pHash-only clustering")
     print("=" * 60)
 
     # Split items by GPS presence
     with_gps = [it for it in items if it.gps]
     without_gps = [it for it in items if not it.gps]
 
-    # GPS-only clusters: same site within X feet = same project (ignore time)
+    # GPS-only clustering: returns (multi_photo_clusters, singletons)
+    # Singletons get re-clustered using full hierarchical strategy
     site_meters = args.site_distance_feet * 0.3048
-    gps_groups = cluster_gps_only(with_gps, max_meters=site_meters)
+    gps_groups, gps_singletons = cluster_gps_only(with_gps, max_meters=site_meters)
 
-    # For items without GPS, use fused clustering
-    th_groups = fused_cluster(
-        without_gps, name_map, fuse_threshold=0.75, max_edges_per_node=20
-    )
+    if gps_singletons:
+        print(
+            f"📍 Found {len(gps_singletons)} GPS singletons → re-clustering via hierarchical strategy"
+        )
+
+    # Combine GPS singletons with non-GPS photos for fused clustering
+    items_for_fused = without_gps + gps_singletons
+
+    # For items without GPS (+ GPS singletons), choose clustering strategy
+    if args.phash_only:
+        # TEST MODE: Use only pHash for clustering (visual similarity)
+        print(f"Using pHash-only clustering (threshold: {args.hash_threshold})")
+        th_groups = cluster_phash_only(
+            items_for_fused, hash_threshold=args.hash_threshold
+        )
+    else:
+        # NORMAL MODE: Full hierarchical fused clustering
+        # Strategy 1: time+filename+hash (if datetime available)
+        # Strategy 2: filename+hash (if strong filename match)
+        # Strategy 3: hash only (fallback)
+        th_groups = fused_cluster(
+            items_for_fused,
+            name_map,
+            fuse_threshold=DEFAULT_FUSE_THRESHOLD,
+            max_edges_per_node=DEFAULT_MAX_EDGES,
+        )
 
     # Save fused clustering explanation
     explain = []
@@ -154,28 +247,117 @@ def main():
                 }
             )
         explain.append({"cluster": gi, "count": len(g), "items": rows})
-    with open(work_dir / "fused_explain.json", "w", encoding="utf-8") as f:
+    with open(work_dir / "fused_explain_no_gps.json", "w", encoding="utf-8") as f:
         json.dump(explain, f, indent=2)
 
     # Combine
     groups = gps_groups + th_groups
 
-    # Write cluster summary
-    summary = [
-        {
-            "cluster": i + 1,
-            "count": len(g),
-            "has_gps": any(x.gps for x in g),
-            "example": g[0].path.name,
-        }
-        for i, g in enumerate(groups)
-    ]
+    # 2b) AI Singleton Assignment (OPTIONAL)
+    if args.assign_singletons:
+        print("\n" + "=" * 60)
+        print("STEP 2b: AI SINGLETON ASSIGNMENT")
+        print("=" * 60)
+
+        # Separate singletons from multi-photo clusters
+        multi_photo_clusters = [g for g in groups if len(g) > 1]
+        singleton_clusters = [g for g in groups if len(g) == 1]
+
+        if singleton_clusters and multi_photo_clusters:
+            print(
+                f"Found {len(singleton_clusters)} singleton clusters and "
+                f"{len(multi_photo_clusters)} multi-photo clusters"
+            )
+
+            # Get singleton items (flatten singleton clusters)
+            singleton_items = [g[0] for g in singleton_clusters]
+
+            # Call AI to assign singletons to clusters
+            assignments = assign_singletons_batched(
+                singleton_items, multi_photo_clusters, model=args.model
+            )
+
+            # Merge assigned singletons into their matched clusters
+            matched_count = 0
+            for singleton_id, cluster_idx in assignments.items():
+                if cluster_idx != -1 and 0 <= cluster_idx < len(multi_photo_clusters):
+                    # Find the singleton item
+                    singleton_item = next(
+                        (item for item in singleton_items if item.id == singleton_id),
+                        None,
+                    )
+                    if singleton_item:
+                        # Add to the matched cluster
+                        multi_photo_clusters[cluster_idx].append(singleton_item)
+                        matched_count += 1
+
+            # Rebuild groups: multi-photo clusters + remaining singletons
+            remaining_singletons = [
+                [item] for item in singleton_items if assignments.get(item.id, -1) == -1
+            ]
+            groups = multi_photo_clusters + remaining_singletons
+
+            print(
+                f"✅ Merged {matched_count} singletons into existing clusters, "
+                f"{len(remaining_singletons)} singletons remain"
+            )
+        else:
+            print("No singletons or multi-photo clusters available for assignment")
+
+    # Write cluster summary with full file lists and thumbnail paths
+    # Use final `groups` after singleton assignment (if enabled)
+    summary = []
+    cluster_num = 1
+    final_gps_count = 0
+    final_non_gps_count = 0
+
+    for g in groups:
+        # Determine if this is a GPS or non-GPS cluster
+        has_gps = any(item.gps for item in g)
+
+        if has_gps:
+            strategy = "gps_location"
+            final_gps_count += 1
+        else:
+            # Determine which fused strategy was used
+            if args.phash_only:
+                strategy = "phash_only_test"
+            else:
+                # Determine which fused strategy was likely used
+                has_datetime_count = sum(1 for item in g if item.dt is not None)
+                if has_datetime_count >= len(g) / 2:
+                    strategy = "time+filename+hash"
+                else:
+                    # Check filename similarity strength
+                    name_feats = [name_map[item.id] for item in g]
+                    has_same_prefix = len(set(nf.prefix for nf in name_feats)) == 1
+                    has_close_numbers = all(nf.num is not None for nf in name_feats)
+
+                    if has_same_prefix and has_close_numbers:
+                        strategy = "filename+hash"
+                    else:
+                        strategy = "hash_only"
+            final_non_gps_count += 1
+
+        summary.append(
+            {
+                "cluster": cluster_num,
+                "count": len(g),
+                "strategy": strategy,
+                "has_gps": has_gps,
+                "example": g[0].path.name,
+                "files": [
+                    {
+                        "name": item.path.name,
+                        "thumb": get_thumb_path(item.path.name, work_dir),
+                    }
+                    for item in g
+                ],
+            }
+        )
+        cluster_num += 1
     with open(work_dir / "clusters.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-
-    print(
-        f"Clusters formed: {len(groups)} (GPS groups: {len(gps_groups)}, non-GPS groups: {len(th_groups)})"
-    )
 
     # 3) Classification
     print("\n" + "=" * 60)
@@ -206,17 +388,20 @@ def main():
     print("COMPLETE!")
     print("=" * 60)
 
+    # Print clustering statistics at the end (using final counts after singleton assignment)
+    print_clustering_stats(summary, final_gps_count, final_non_gps_count)
+
 
 if __name__ == "__main__":
     # Inline defaults so you can press Run without typing CLI args
     if len(sys.argv) == 1:
         sys.argv.extend(
             shlex.split(
-                f"run --input '{IMAGE_DIR}' --output '{(SCRIPT_DIR/'organized').as_posix()}' --rotate-cities "
-                "--time-gap-min 600 "  # 10 hours between photos
-                "--batch-size 12 "  # 12 photos per batch
-                "--hash-threshold 8 "  # 8 bits difference
-                "--model gpt-4o "  # OpenAI model
+                f"run --input '{IMAGE_DIR}' --output '{DEFAULT_OUTPUT_DIR}' --rotate-cities "
+                f"--time-gap-min {DEFAULT_TIME_GAP_MINUTES} "
+                f"--batch-size {DEFAULT_BATCH_SIZE} "
+                f"--hash-threshold {DEFAULT_HASH_THRESHOLD} "
+                f"--model {DEFAULT_MODEL} "
                 # "--classify"  # Use ChatGPT multi-image classification
                 "--dry-run "  # Do everything except copy originals
                 "--rotate-cities "  # Rotate cities if GPS missing

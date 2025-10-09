@@ -5,7 +5,7 @@ Standalone entry script for Photo Organizer.
 This script can be run directly without needing to use module syntax.
 
 Usage:
-    python organize_photos.py run --input /path/to/photos --output /path/to/organized
+    python main.py run --input /path/to/photos --output /path/to/organized
 
 This is equivalent to:
     python -m photo_organizer.cli run --input /path/to/photos --output /path/to/organized
@@ -32,19 +32,14 @@ DEFAULT_ARGS = f"""
 run
 --input '{IMAGE_DIR}'
 --output '{(SCRIPT_DIR / 'organized').as_posix()}'
---rotate-cities
---time-gap-min 600
---batch-size 12
---hash-threshold 8
---model gpt-4o
---dry-run
 """.strip()
 
-# Uncomment to enable classification by default:
-# DEFAULT_ARGS += " --classify"
-
-# Uncomment to set a brand name:
-# DEFAULT_ARGS += " --brand 'your-company-name'"
+# Override defaults from config.py by uncommenting:
+# DEFAULT_ARGS += " --classify"            # Enable AI classification
+DEFAULT_ARGS += " --brand 'RC Concrete"  # Set brand name
+# DEFAULT_ARGS += " --no-dry-run"          # Actually move files (not just simulate)
+# DEFAULT_ARGS += " --no-rotate-cities"    # Don't rotate cities
+# DEFAULT_ARGS += " --phash-only"  # TEST: Cluster by pHash only (visual similarity)
 
 # ============================================================================
 
@@ -53,7 +48,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv.extend(shlex.split(DEFAULT_ARGS))
         print("=" * 60)
-        print("Running with default arguments (edit in organize_photos.py)")
+        print("Running with default arguments (edit default args in main.py)")
         print("=" * 60)
 
     main()

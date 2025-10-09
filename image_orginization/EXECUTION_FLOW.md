@@ -1,15 +1,25 @@
 # Photo Organizer - Execution Flow
 
-Complete execution flow showing the 4-step pipeline and all major function calls.
+Complete execution flow showing the 4-step pipeline with optimized clustering algorithms.
+
+---
+
+## Configuration
+
+**All default parameters are centralized in:** `photo_organizer/config.py`
+- Clustering thresholds and weights
+- Model settings (OpenAI)
+- File paths and extensions
+- GPS distance parameters
 
 ---
 
 ## Pipeline Overview
 
-**Entry Point:** `organize_photos.py` → `cli.main()` (`photo_organizer/cli.py`)
+**Entry Point:** `main.py` → `cli.main()` (`photo_organizer/cli.py`)
 
 1. **Ingestion** - Extract metadata from all images
-2. **Clustering** - Group related photos
+2. **Clustering** - Group related photos (hierarchical strategy)
 3. **Classification** - Identify surface types (optional)
 4. **Organization** - Rename and organize files
 
@@ -57,50 +67,62 @@ Complete execution flow showing the 4-step pipeline and all major function calls
 ---
 
 ## STEP 2: CLUSTERING
-**Group related photos by location, time, and visual similarity**
+**Group related photos using hierarchical strategy (GPS → Datetime → Filename → Hash)**
 
 ### A. Extract Filename Features
 - `name_features(path)` - `utils/filename.py`
-- Parses patterns like IMG_1234, DSC_5678
+- Parses patterns like IMG_1234, DSC_5678, Photo_567
+- Normalizes prefixes (IMG, IMAGE, DSC → 'img')
 - **Returns:** `NameFeat(prefix, num, suffix, raw)`
 
-### B. Split Items by GPS
-- `with_gps` - Items with GPS coordinates
-- `without_gps` - Items without GPS
+### B. Hierarchical Clustering Strategy
 
-### C. GPS-Based Clustering (for items with GPS)
-**Function:** `cluster_gps_only(items, max_meters)` - `clustering/gps.py`
+**PRIORITY 1: GPS-Based Clustering** (Most Reliable)
+- **Function:** `cluster_gps_only(items, max_meters)` - `clustering/gps.py`
+- Groups photos within distance threshold (default: 900 feet)
+- Uses haversine formula for accurate Earth-surface distance
+- **Rationale:** Same location = same project site
 
-- Calculates distance between all pairs:
-  - `meters_between(gps1, gps2)` - `utils/geo.py`
-  - `haversine(lat1, lon1, lat2, lon2)` - Earth curvature calculation
-- Groups photos within `site_distance` (default: 300 feet / 91 meters)
-- **Returns:** List of photo groups
+**PRIORITY 2: Fused Clustering** (For non-GPS photos)
+- **Function:** `fused_cluster(items, name_map, fuse_threshold)` - `clustering/fused.py`
+- **Optimization:** Pre-sorted sliding window (37x faster than old O(n²) approach)
+  - Sort photos ONCE by filename number
+  - Check only ±64 neighbors in sorted list
+  - Sequential files (IMG_55→IMG_56) are adjacent = instant match
 
-### D. Fused Clustering (for items without GPS)
-**Function:** `fused_cluster(items, name_map, fuse_threshold=0.75)` - `clustering/fused.py`
+**Fused Clustering uses 3 hierarchical strategies:**
 
-Builds similarity graph using three factors:
+1. **Strategy 1: Photos WITH datetime** (HIGH CONFIDENCE)
+   - `0.45 * time + 0.40 * filename + 0.15 * hash`
+   - Time and filename are primary signals
+   - Hash validates visual similarity
 
-1. **Time Similarity**
-   - `temporal_score(dt1, dt2)` - `clustering/temporal.py`
-   - Converts datetimes to timestamps, calculates difference
-   
-2. **Filename Similarity**
-   - `filename_score(name1, name2)` - `utils/filename.py`
-   - Compares prefixes and number sequences
-   
-3. **Visual Similarity**
-   - Hamming distance between perceptual hashes
-   - Converted to similarity score
+2. **Strategy 2: NO datetime, strong filename** (MEDIUM CONFIDENCE)
+   - `0.75 * filename + 0.25 * hash`
+   - Filename is PRIMARY (sequential numbers highly predictive)
+   - Requires filename score > 0.3 to use this strategy
 
-**Fused Score:** `time * 0.4 + filename * 0.3 + visual * 0.3`
+3. **Strategy 3: Weak filename** (LOW CONFIDENCE)
+   - Uses `hash` only (visual similarity)
+   - Fallback when filename pattern is unclear
 
-- Finds connected components (DFS/BFS)
-- **Returns:** List of photo groups
+**Filename Scoring** (Optimized for sequential files):
+```python
+Same prefix + gap=1:  0.90  # IMG_55→IMG_56 (almost certain match)
+Same prefix + gap≤3:  0.80  # IMG_55→IMG_57 (very likely match)
+Same prefix + gap≤10: 0.40  # Close sequence
+```
 
-**Output:** Combined list of GPS + non-GPS groups  
-**Saved to:** `_work/clusters.json`, `_work/fused_explain.json`
+**Output:** Combined GPS + fused groups  
+**Saved to:** `_work/clusters.json`, `_work/fused_explain_no_gps.json`  
+**Statistics:** Printed at end via `print_clustering_stats()` - `utils/stats.py`
+
+### C. Test Mode: pHash-Only Clustering
+- **Flag:** `--phash-only`
+- **Function:** `cluster_phash_only(items, hash_threshold)` - `clustering/temporal.py`
+- Clusters using ONLY visual similarity (ignores filename and time)
+- Useful for testing: pHash alone performs poorly on construction photos
+- Sequential filenames + datetime provide much better accuracy
 
 ---
 
@@ -158,7 +180,7 @@ Builds similarity graph using three factors:
   - Surface type
   - City
   - `short_hash(path)` - 12-char MD5 hash for uniqueness
-- Slugify all components: `Bespoke Concrete` → `bespoke-concrete`
+- Slugify all components: `RC Concrete` → `rc-concrete`
 - Convert HEIC/HEIF extensions to `.jpg`
 - Copy file: `shutil.copy2(src, dst)`
 
@@ -184,9 +206,10 @@ Builds similarity graph using three factors:
 - `short_hash(path, length=12)` - `utils/image.py`
 
 ### EXIF Extraction
-- `read_exif_combined(path)` - `utils/exif.py`
-- `read_exif_dt(path)` - `utils/exif.py` (legacy)
-- `read_exif_gps(path)` - `utils/exif.py` (legacy)
+- `read_exif_combined(path)` - `utils/exif.py` (datetime + GPS in one call)
+- `read_exif_batch(files, max_workers=8)` - `utils/exif.py` (concurrent batch extraction)
+- Supports: DateTimeOriginal, CreateDate, human-readable dates (e.g., "April 21, 2021")
+- Prioritizes creation date over modification date
 
 ### Geolocation
 - `haversine(lat1, lon1, lat2, lon2)` - `utils/geo.py`
@@ -200,13 +223,21 @@ Builds similarity graph using three factors:
 ### Clustering
 - `cluster_gps_only(items, max_meters)` - `clustering/gps.py`
 - `fused_cluster(items, name_map, fuse_threshold)` - `clustering/fused.py`
-- `temporal_score(dt1, dt2)` - `clustering/temporal.py`
+- `cluster_phash_only(items, hash_threshold)` - `clustering/temporal.py` (test mode)
+- `fuse_score(item_a, item_b, name_map)` - `clustering/fused.py` (hierarchical scoring)
+- `time_score(dt1, dt2)` - `clustering/temporal.py`
+- `phash_score(hash1, hash2)` - `clustering/temporal.py`
+
+### Statistics & Reporting
+- `print_clustering_stats(summary, gps_count, non_gps_count)` - `utils/stats.py`
+- Displays singleton percentage, strategy breakdown, cluster counts
 
 ### Classification
 - `classify_batches(items, batch_size, model)` - `classification/openai_classifier.py`
 
 ### Organization
 - `organize(groups, labels, out_dir, brand, rotate_cities)` - `organization.py`
+- `get_thumb_path(filename, work_dir)` - `cli.py` (thumbnail path builder)
 
 ---
 
@@ -226,27 +257,33 @@ Input Images
 
 ---
 
-## Performance
-
-For 500 images on 8-core system:
-
-| Operation | Sequential | Concurrent | Speedup |
-|-----------|-----------|------------|---------|
-| EXIF Extraction | ~300s | ~40s | **7.5x** |
-| Thumbnails | ~100s | ~15s | **6.7x** |
-| Perceptual Hashing | ~25s | ~4s | **6.3x** |
-| **Total Ingestion** | **~7 min** | **~1 min** | **~7x** |
-
-**Overall pipeline: ~10-20x faster with concurrent processing**
-
 ---
 
 ## Output Files
 
 All saved to `output/_work/`:
-- `ingest.json` - All extracted metadata
-- `clusters.json` - Cluster summary
-- `fused_explain.json` - Clustering details (non-GPS)
-- `labels.json` - Classification results (if enabled)
+- `ingest.json` - All extracted metadata (datetime, GPS, pHash, filenames)
+- `clusters.json` - Cluster summary with strategy tags and thumbnail paths
+  - Each cluster includes: count, strategy used, files with thumbnail links
+- `fused_explain_no_gps.json` - Clustering details for non-GPS photos
+- `labels.json` - Classification results (if `--classify` enabled)
 - `manifest.json` - Complete file mapping (src → dst)
-- `thumbs/` - Generated thumbnails (768px)
+- `thumbs/` - Generated thumbnails (768px JPEG)
+
+## Performance Optimizations
+
+### Clustering Speed (37x faster)
+- **Old:** O(n²) - Re-sort for each photo (90,000 ops for 300 photos)
+- **New:** O(n log n) - Pre-sort once, sliding window (2,400 ops for 300 photos)
+- Sequential files (IMG_55→IMG_56) are adjacent in sorted list = instant match
+
+### Filename Scoring Priority
+- **Sequential numbers** (gap=1) score 0.90 - almost certain match
+- **Close sequences** (gap≤3) score 0.80 - very likely match
+- Based on user validation: sequential filenames are the strongest signal
+
+### Hierarchical Signal Weighting
+- **GPS:** Always first priority (same location = same project)
+- **Datetime + Filename:** Best for photos with timestamps (45% time, 40% filename)
+- **Filename + Hash:** Best for photos without datetime (75% filename, 25% hash)
+- **Hash only:** Fallback (unreliable for construction photos with similar materials)

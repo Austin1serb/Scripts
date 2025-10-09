@@ -25,7 +25,7 @@ Organize photos by GPS location and timestamps:
 
 ```bash
 # Simple direct execution
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --brand "your-company-name"
@@ -48,12 +48,36 @@ This will:
 
 For automatic concrete construction type detection:
 
+### Option A: Using .env file (Recommended)
+
+```bash
+# Install python-dotenv if not already installed
+pip install python-dotenv
+
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and add your API key
+# OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Run with classification
+python main.py run \
+  --input "/path/to/your/photos" \
+  --output "./organized" \
+  --brand "your-company-name" \
+  --classify \
+  --batch-size 12 \
+  --model gpt-4o
+```
+
+### Option B: Using environment variable
+
 ```bash
 # Set OpenAI API key
 export OPENAI_API_KEY="sk-..."
 
 # Run with classification
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --brand "your-company-name" \
@@ -67,7 +91,7 @@ python organize_photos.py run \
 Test without copying files:
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --dry-run
@@ -84,7 +108,7 @@ Results will be in `./organized/_work/`:
 Group photos taken at the same location:
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --site-distance-feet 300 \  # Within 300 feet = same project
@@ -95,7 +119,7 @@ python organize_photos.py run \
 For projects spanning multiple days:
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --time-gap-min 600 \  # 10 hours max gap
@@ -106,7 +130,7 @@ python organize_photos.py run \
 Rotate city names if GPS is missing:
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
   --rotate-cities  # Cycle through: puyallup, bellevue, tacoma
@@ -138,7 +162,7 @@ organized/
 
 ### Case 1: Organize Phone Photos
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "~/Pictures/iPhone" \
   --output "./organized-projects" \
   --brand "my-concrete-co" \
@@ -147,7 +171,7 @@ python organize_photos.py run \
 
 ### Case 2: Historical Archive (No GPS)
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "./old-photos" \
   --output "./organized" \
   --rotate-cities \
@@ -156,7 +180,7 @@ python organize_photos.py run \
 
 ### Case 3: Quick Sort by Location Only
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "./photos" \
   --output "./by-location" \
   --site-distance-feet 100  # Very tight clustering
@@ -175,30 +199,33 @@ pytest tests/ -v
 ## 9. Get Help
 
 ```bash
-python organize_photos.py --help
+python main.py --help
 ```
 
 ## 10. Troubleshooting
 
 ### OpenAI API Errors
 ```bash
-# Check API key is set
+# Check API key is set (if using environment variable)
 echo $OPENAI_API_KEY
 
+# Check .env file exists and has correct format
+cat .env
+
 # Reduce batch size if hitting token limits
-python organize_photos.py run ... --batch-size 6
+python main.py run ... --batch-size 6
 ```
 
 ### No GPS Found
 ```bash
 # Use --rotate-cities to assign cities anyway
-python organize_photos.py run ... --rotate-cities
+python main.py run ... --rotate-cities
 ```
 
 ### Photos Not Clustering Well
 ```bash
 # Increase time gap and hash threshold
-python organize_photos.py run ... --time-gap-min 600 --hash-threshold 10
+python main.py run ... --time-gap-min 600 --hash-threshold 10
 ```
 
 ### HEIC Format Issues

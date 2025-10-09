@@ -1,4 +1,4 @@
-"""GPS-based clustering for grouping photos by location.
+"""GPS-based clustering for grouping photos by location. if only one photo is found, it is returned as a singleton.
 
 Expected EXIF Data Structures (from utils.exif):
     - Item.gps: Optional[Tuple[float, float]]
@@ -17,11 +17,11 @@ from ..models import Item, DSU
 from ..utils.geo import meters_between
 
 
-def cluster_gps_only(items: List[Item], max_meters: float = 100) -> List[List[Item]]:
+def cluster_gps_only(items: List[Item], max_meters: float = 300):
     """Cluster items strictly by GPS location threshold, ignoring time.
 
     Groups photos that are within max_meters of each other into the same cluster.
-    Useful for identifying photos taken at the same physical site/project.
+    GPS singletons are separated out - they'll be re-clustered using filename/datetime.
 
     Args:
         items: List of Item objects to cluster
@@ -29,12 +29,15 @@ def cluster_gps_only(items: List[Item], max_meters: float = 100) -> List[List[It
         max_meters: Maximum distance in meters for photos to be in same cluster
 
     Returns:
-        List of clusters (each cluster is a list of Items)
+        Tuple of (multi_photo_clusters, singletons):
+            - multi_photo_clusters: List of clusters with 2+ photos
+            - singletons: List of single Item objects that didn't cluster
+                         (these should be re-clustered using fused strategy)
     """
     # Only consider items with GPS data
     items_with_gps = [item for item in items if item.gps]
     if not items_with_gps:
-        return []
+        return [], []
 
     num_gps_items = len(items_with_gps)
     cluster_tracker = DSU(num_gps_items)
@@ -53,6 +56,10 @@ def cluster_gps_only(items: List[Item], max_meters: float = 100) -> List[List[It
     for item_index in range(num_gps_items):
         cluster_root = cluster_tracker.find(item_index)
         clusters_by_root.setdefault(cluster_root, []).append(items_with_gps[item_index])
-    print("list(clusters_by_root.values()): ", list(clusters_by_root.values()))
 
-    return list(clusters_by_root.values())
+    # Separate multi-photo clusters from singletons
+    all_groups = list(clusters_by_root.values())
+    multi_photo_groups = [g for g in all_groups if len(g) > 1]
+    singletons = [g[0] for g in all_groups if len(g) == 1]
+
+    return multi_photo_groups, singletons

@@ -1,7 +1,8 @@
 """Time-based clustering with perceptual hash centroid matching."""
 
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 import numpy as np
 import imagehash
 from ..models import Item
@@ -69,6 +70,7 @@ def phash_median(hashes) -> Optional[imagehash.ImageHash]:
         Median ImageHash or None if no valid hashes
     """
     valid_hashes = [image_hash for image_hash in hashes if image_hash is not None]
+    print("valid_hashes: ", valid_hashes)
     if not valid_hashes:
         return None
 
@@ -142,5 +144,71 @@ def cluster_temporal(
 
     if current_cluster:
         clusters.append(current_cluster)
+
+    return clusters
+
+
+def cluster_phash_only(items: List[Item], hash_threshold: int = 6) -> List[List[Item]]:
+    """Cluster photos using ONLY perceptual hash similarity (visual similarity).
+
+    This is a pure visual similarity clustering to test pHash accuracy in isolation.
+    Uses connected components: photos within hash_threshold distance are connected.
+
+    Args:
+        items: List of items to cluster
+        hash_threshold: Maximum hamming distance to consider photos similar (0-64)
+            Lower = stricter (more similar required)
+            Default 6 = visually very similar
+
+    Returns:
+        List of clusters, each cluster is a list of similar-looking photos
+    """
+    if not items:
+        return []
+
+    # Filter out items without pHash
+    items_with_hash = [item for item in items if item.h is not None]
+
+    if not items_with_hash:
+        return []
+
+    # Build adjacency graph based on pHash distance
+    adjacency: Dict[str, List[str]] = defaultdict(list)
+
+    # Compare all pairs (O(n²) but simple for testing)
+    for i, item_a in enumerate(items_with_hash):
+        for item_b in items_with_hash[i + 1 :]:
+            hamming_distance = item_a.h - item_b.h
+
+            if hamming_distance <= hash_threshold:
+                adjacency[item_a.id].append(item_b.id)
+                adjacency[item_b.id].append(item_a.id)
+
+    # Find connected components using BFS
+    visited = set()
+    clusters = []
+
+    for item in items_with_hash:
+        if item.id in visited:
+            continue
+
+        # BFS to find all connected items
+        cluster = []
+        queue = [item.id]
+        visited.add(item.id)
+
+        while queue:
+            current_id = queue.pop(0)
+            # Find the actual item object
+            current_item = next(it for it in items_with_hash if it.id == current_id)
+            cluster.append(current_item)
+
+            # Add unvisited neighbors
+            for neighbor_id in adjacency[current_id]:
+                if neighbor_id not in visited:
+                    visited.add(neighbor_id)
+                    queue.append(neighbor_id)
+
+        clusters.append(cluster)
 
     return clusters

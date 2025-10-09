@@ -110,45 +110,41 @@ def filename_score(a: NameFeat, b: NameFeat) -> float:
 
         # Same normalized prefix (IMG, IMAGE, DSC all → 'img')
         if a.prefix == b.prefix and a.prefix != "":
-            # Exponential decay for number gap scoring
+            # Sequential filenames are STRONGEST signal (per user validation)
+            # IMG_55, IMG_56, IMG_57 almost always = same burst/project
             if number_gap == 0:
-                score += 0.6  # Perfect match
+                score += 0.95  # Identical number = exact match
             elif number_gap == 1:
-                score += 0.55  # Adjacent (likely burst)
+                score += 0.90  # Adjacent (almost certainly same burst)
             elif number_gap <= 3:
-                score += 0.45  # Very close sequence
+                score += 0.80  # Very close sequence (very likely same project)
             elif number_gap <= 10:
-                score += 0.30  # Close sequence
+                score += 0.40  # Close sequence (likely related)
             elif number_gap <= 30:
-                score += 0.15  # Moderate gap
+                score += 0.10  # Moderate gap (possibly related)
             elif number_gap <= 50:
-                score += 0.05  # Weak relation
+                score += 0.00  # Weak relation
             # >50 gap: 0.0 (likely different project/time)
 
         # No prefix or different prefix - reduced weight
         else:
             if number_gap == 0:
-                score += 0.3
+                score += 0.5
             elif number_gap <= 3:
                 score += 0.2
             elif number_gap <= 10:
-                score += 0.1
+                score += 0.05
 
     # COMPONENT 2: String similarity (fallback/enhancement signal)
     if HAS_RAPIDFUZZ:
-        # RapidFuzz: better handles variations, typos, different separators
-        # ratio: general similarity (0-100), normalized to 0-1
-        ratio = fuzz.ratio(a.raw, b.raw) / 100.0
-        # partial_ratio: best matching substring
-        partial = fuzz.partial_ratio(a.raw, b.raw) / 100.0
-        # token_sort: ignores word order
-        token_sort = fuzz.token_sort_ratio(a.raw, b.raw) / 100.0
-
-        # Weighted average favoring exact and partial matches
-        string_similarity = 0.5 * ratio + 0.3 * partial + 0.2 * token_sort
+        # RapidFuzz: Fast C++ implementation for string comparison
+        # For camera filenames (IMG_6785), simple ratio is sufficient
+        # Number proximity already handled in COMPONENT 1
+        string_similarity = fuzz.ratio(a.raw, b.raw) / 100.0
         score += 0.3 * string_similarity
     else:
         # Fallback to LCP if RapidFuzz not available
+        # Simple and fast for structured camera filenames
         lcp = lcp_len(a.raw, b.raw)
         max_len = max(len(a.raw), len(b.raw))
         if max_len > 0:

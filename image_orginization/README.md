@@ -68,7 +68,7 @@ export OPENAI_API_KEY=sk-...
 
 ```bash
 # Simple direct execution
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/photos" \
   --output "/path/to/organized" \
   --brand "your-brand-name"
@@ -83,7 +83,7 @@ python -m photo_organizer.cli run \
 ### With Classification
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/photos" \
   --output "/path/to/organized" \
   --brand "bespoke-concrete" \
@@ -95,7 +95,7 @@ python organize_photos.py run \
 ### Advanced Options
 
 ```bash
-python organize_photos.py run \
+python main.py run \
   --input "/path/to/photos" \
   --output "/path/to/organized" \
   --brand "bespoke-concrete" \
@@ -135,7 +135,7 @@ output/
 │   ├── thumbs/              # Generated thumbnails
 │   ├── ingest.json          # Ingestion metadata
 │   ├── clusters.json        # Cluster summary
-│   ├── fused_explain.json   # Clustering explanation
+│   ├── fused_explain_no_gps.json   # Clustering explanation
 │   └── labels.json          # Classification results
 ├── 2024-01-15-patio-bellevue/
 │   ├── brand-concrete-patio-patio-bellevue-a3b5c7d2.jpg

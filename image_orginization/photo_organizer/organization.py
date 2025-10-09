@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Dict
 from slugify import slugify
 from .models import Item
-from .config import SURFACE_CANON
+from .config import SURFACE_CANON, CITIES
 from .utils.geo import nearest_city
 from .utils.image import short_hash
 
@@ -35,7 +35,7 @@ def organize(
         rotate_cities: Whether to rotate cities if GPS is missing
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    cycle = ["puyallup", "bellevue", "tacoma"]
+    cycle = list(CITIES.keys())
 
     manifest = []
 
@@ -53,7 +53,11 @@ def organize(
 
         # Determine city
         gps_any = next((it.gps for it in grp if it.gps), None)
-        city = nearest_city(gps_any, cycle if rotate_cities else ["bellevue"], gi - 1)
+        city = nearest_city(
+            gps_any,
+            cycle if rotate_cities else CITIES,
+            gi - 1,
+        )
 
         # Create folder name
         rep_dt = next((it.dt for it in grp if it.dt), None)

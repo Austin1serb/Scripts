@@ -57,7 +57,7 @@ image_orginization/
 │   └── v1_photo_cli.py              # Original monolithic script (preserved)
 │
 ├── 🚀 Entry Point
-│   └── organize_photos.py           # Standalone entry script (direct execution)
+│   └── main.py           # Standalone entry script (direct execution)
 │
 └── venv/                            # Virtual environment (existing)
 ```
@@ -221,7 +221,7 @@ make install              # Production dependencies
 make install-dev          # + development tools
 
 # Run (three ways)
-python organize_photos.py run --input ./photos --output ./out  # Direct script
+python main.py run --input ./photos --output ./out  # Direct script
 python -m photo_organizer.cli run --input ./photos --output ./out  # Module
 photo-organizer run --input ./photos --output ./out  # After pip install
 make run                  # With default settings
@@ -270,7 +270,7 @@ make lint                # Check with pylint
 - ✅ setup.py
 - ✅ Makefile
 - ✅ .gitignore
-- ✅ organize_photos.py (standalone entry script)
+- ✅ main.py (standalone entry script)
 
 ### Preserved
 - 📄 v1_photo_cli.py (legacy script, for reference)
