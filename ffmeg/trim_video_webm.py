@@ -197,7 +197,7 @@ if __name__ == "__main__":
         start_time="00:00:00.00",
         # duration="00:00:11.00",
         crop=False,
-        width=1280,
+        width=881,
         height=720,
         fps=30,
         crf=20,

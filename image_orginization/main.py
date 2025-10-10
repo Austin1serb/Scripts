@@ -35,8 +35,12 @@ run
 """.strip()
 
 # Override defaults from config.py by uncommenting:
-# DEFAULT_ARGS += " --classify"            # Enable AI classification
-DEFAULT_ARGS += " --brand 'RC Concrete"  # Set brand name
+
+
+# DEFAULT_ARGS += " --classify"            # Enable AI ai_classification
+DEFAULT_ARGS += " --brand 'RC Concrete'"  # Set brand name
+
+
 # DEFAULT_ARGS += " --no-dry-run"          # Actually move files (not just simulate)
 # DEFAULT_ARGS += " --no-rotate-cities"    # Don't rotate cities
 # DEFAULT_ARGS += " --phash-only"  # TEST: Cluster by pHash only (visual similarity)

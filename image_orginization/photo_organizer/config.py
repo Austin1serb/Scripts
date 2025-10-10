@@ -27,7 +27,7 @@ DEFAULT_HASH_THRESHOLD = (
 DEFAULT_FUSE_THRESHOLD = 0.5  # Min similarity score (0.0-1.0)
 DEFAULT_MAX_EDGES = 32  # Max connections per photo
 # AI Classification
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "o4-mini"
 DEFAULT_BATCH_SIZE = 12
 DEFAULT_CLASSIFY = False
 # AI Singleton Assignment
@@ -92,32 +92,40 @@ CITIES = {
 
 # =============================================================================
 # CLASSIFICATION LABELS & MAPPING
+# <primary-intent>-<specific-surface>-<city?>-<unique>.jpg
+# Primary intent:
+# - broom-finish-driveway
+# - concrete-driveway
+# - concrete-patio
+# - concrete-repair
+# - concrete-resurfacing
+
 # =============================================================================
 LABELS = [
     # Core services
-    "stamped-concrete-patio",
-    "stamped-concrete-driveway",
-    "stamped-concrete-walkway",
-    "concrete-patio",
+    "broom-finish-driveway",
     "concrete-driveway",
-    "concrete-walkway",
-    "concrete-steps",
-    "exposed-aggregate-driveway",
-    "exposed-aggregate-patio",
-    "retaining-wall",
+    "concrete-patio",
     "concrete-repair",
     "concrete-resurfacing",
+    "concrete-steps",
+    "concrete-walkway",
     "decorative-concrete",
-    "sidewalk",
-    "stamped-concrete-driveway",
-    "stamped-concrete-walkway",
+    "driveway-replacement",
+    "exposed-aggregate-driveway",
     "exposed-aggregate-driveway",
     "exposed-aggregate-patio",
-    "driveway-replacement",
-    "sidewalk",
+    "exposed-aggregate-patio",
     "foundation-slab",
     "resurfacing",
-    "broom-finish-driveway",
+    "retaining-wall",
+    "sidewalk",
+    "sidewalk",
+    "stamped-concrete-driveway",
+    "stamped-concrete-driveway",
+    "stamped-concrete-patio",
+    "stamped-concrete-walkway",
+    "stamped-concrete-walkway",
     # Fallback
     "unknown",
 ]
@@ -149,3 +157,29 @@ SURFACE_CANON = {
     "broom-finish-driveway": ("broom-finish-concrete-driveway", "driveway"),
     "unknown": ("concrete-company", "project"),
 }
+
+
+MESSAGES = [
+    {
+        "role": "system",
+        "content": "You are an image classifier for concrete construction photos. Output STRICT JSON, UTF-8, no prose.Return only fields: id, label, confidence, descriptor. If uncertain, return label 'unknown' and confidence <= 0.5.",
+    },
+    {
+        "role": "user",
+        "content": (
+            "Allowed labels (exact strings): "
+            + ", ".join([label.replace("-", " ") for label in LABELS])
+            + ".\n"
+            "Output must be a STRICT JSON array, UTF-8, no prose, no code fences.\n"
+            "Return one object per input image with fields: id, label, confidence, descriptor.\n"
+            "Rules:\n"
+            "- id: the exact filename we sent you for that image.\n"
+            '- label: one of the allowed labels, or "unknown" if unsure.\n'
+            "- confidence: a float between 0 and 1.\n"
+            '- descriptor: max 6 words, concrete-specific detail (e.g., "broom finish", "saw-cut pattern").\n'
+            'Abstain when unsure: if your confidence would be below 0.65, set label to "unknown" and confidence <= 0.5.\n'
+            "Do not include city, filenames to use, synonyms, or any extra fields beyond id, label, confidence, descriptor.\n"
+            "Return only the JSON array."
+        ),
+    },
+]

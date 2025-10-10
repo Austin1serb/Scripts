@@ -29,7 +29,7 @@ def organize(
 
     Args:
         groups: List of photo clusters
-        labels: Dictionary mapping item IDs to classification results
+        labels: Dictionary mapping item IDs to ai_classification results
         out_dir: Output directory for organized photos
         brand: Brand name slug to include in filenames
         rotate_cities: Whether to rotate cities if GPS is missing

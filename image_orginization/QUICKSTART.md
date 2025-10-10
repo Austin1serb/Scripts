@@ -60,7 +60,7 @@ cp .env.example .env
 # Edit .env and add your API key
 # OPENAI_API_KEY=sk-your-actual-api-key-here
 
-# Run with classification
+# Run with ai_classification
 python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \
@@ -76,7 +76,7 @@ python main.py run \
 # Set OpenAI API key
 export OPENAI_API_KEY="sk-..."
 
-# Run with classification
+# Run with ai_classification
 python main.py run \
   --input "/path/to/your/photos" \
   --output "./organized" \

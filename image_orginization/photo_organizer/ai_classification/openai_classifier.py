@@ -1,4 +1,4 @@
-"""OpenAI GPT Vision-based image classification and singleton assignment."""
+"""OpenAI GPT Vision-based image ai_classification and singleton assignment."""
 
 import base64
 import json
@@ -7,6 +7,7 @@ from typing import List, Dict
 from ..models import Item
 from ..config import (
     LABELS,
+    MESSAGES,
     SINGLETON_BATCH_SIZE,
     CLUSTER_SAMPLES_PER_CLUSTER,
     MAX_CLUSTERS_PER_CALL,
@@ -17,7 +18,9 @@ from ..config import (
 try:
     from dotenv import load_dotenv
 
-    load_dotenv()
+    # Load .env from project root (parent directory of photo_organizer)
+    project_root = Path(__file__).parent.parent.parent
+    load_dotenv(project_root / ".env", override=True)
 except ImportError:  # pragma: no cover
     pass  # python-dotenv not installed, continue without it
 
@@ -49,13 +52,13 @@ def classify_batches(items: List[Item], batch_size: int, model: str) -> Dict[str
         model: OpenAI model to use (e.g., 'gpt-4o')
 
     Returns:
-        Dictionary mapping item IDs to classification results containing:
+        Dictionary mapping item IDs to ai_classification results containing:
             - label: Classification label
             - confidence: Confidence score (0-1)
             - descriptor: Short description
     """
     if OpenAI is None:
-        print("[warn] openai package not installed, skipping classification")
+        print("[warn] openai package not installed, skipping ai_classification")
         return {
             i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""}
             for i in items
@@ -85,30 +88,19 @@ def classify_batches(items: List[Item], batch_size: int, model: str) -> Dict[str
                             },
                             "descriptor": {"type": "string"},
                         },
-                        "required": ["id", "label", "confidence"],
+                        "required": ["id", "label", "confidence", "descriptor"],
+                        "additionalProperties": False,
                     },
                 }
             },
             "required": ["images"],
+            "additionalProperties": False,
         },
     }
 
     def do_batch(batch: List[Item]):
         """Process a single batch of images."""
-        messages = [
-            {
-                "role": "system",
-                "content": "You are an image classifier for concrete construction photos. Return strict JSON only.",
-            },
-            {
-                "role": "user",
-                "content": (
-                    "Allowed labels: "
-                    + ", ".join(LABELS)
-                    + ". For each image return id, label, confidence (0-1), and a short descriptor."
-                ),
-            },
-        ]
+        messages = MESSAGES.copy()
 
         for it in batch:
             messages.append(
@@ -228,10 +220,12 @@ def assign_singletons_batched(
                             "reason": {"type": "string"},
                         },
                         "required": ["singleton_id", "cluster_id", "confidence"],
+                        "additionalProperties": False,
                     },
                 }
             },
             "required": ["assignments"],
+            "additionalProperties": False,
         },
     }
 
@@ -311,6 +305,7 @@ def assign_singletons_batched(
 
         # Parse response
         data = json.loads(resp.choices[0].message.content)
+        print("raw_response: ", data)
         for assignment in data.get("assignments", []):
             singleton_id = assignment["singleton_id"]
             cluster_id = assignment["cluster_id"]

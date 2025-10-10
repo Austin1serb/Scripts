@@ -129,7 +129,7 @@ Same prefix + gap≤10: 0.40  # Close sequence
 ## STEP 3: CLASSIFICATION (Optional)
 **Identify surface types using OpenAI Vision API**
 
-**Function:** `classify_batches(items, batch_size=12, model='gpt-4o')` - `classification/openai_classifier.py`
+**Function:** `classify_batches(items, batch_size=12, model='gpt-4o')` - `ai_classification/openai_classifier.py`
 
 **Process:**
 1. Split items into batches (default: 12 images)
@@ -233,7 +233,7 @@ Same prefix + gap≤10: 0.40  # Close sequence
 - Displays singleton percentage, strategy breakdown, cluster counts
 
 ### Classification
-- `classify_batches(items, batch_size, model)` - `classification/openai_classifier.py`
+- `classify_batches(items, batch_size, model)` - `ai_classification/openai_classifier.py`
 
 ### Organization
 - `organize(groups, labels, out_dir, brand, rotate_cities)` - `organization.py`

@@ -11,6 +11,7 @@ from .image import (
 from .exif import read_exif_batch
 from .geo import haversine, meters_between, nearest_city
 from .filename import name_features, filename_score
+from .loading_spinner import Spinner
 
 __all__ = [
     "ensure_thumb",
@@ -25,4 +26,5 @@ __all__ = [
     "nearest_city",
     "name_features",
     "filename_score",
+    "Spinner",
 ]

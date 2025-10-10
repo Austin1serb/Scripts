@@ -1,0 +1,19 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+.Python
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+
+# IDE
+.vscode/
+.idea/

@@ -42,7 +42,7 @@ setup(
         "numpy>=1.24.0",
     ],
     extras_require={
-        "classification": ["openai>=1.0.0"],
+        "ai_classification": ["openai>=1.0.0"],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",

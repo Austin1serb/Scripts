@@ -449,11 +449,11 @@ def main():
     # Configuration
     config = {
         # General settings
-        "target_width": 1080,
+        "target_width": 881,
         "output_format": "webp",
         "max_colors": None,  # Set to None for no color reduction
         # Transparency handling
-        "preserve_transparency": True,
+        "preserve_transparency": False,
         # PNG specific
         "png_compression_level": 4,  # 0-9
         "use_pngquant": False,  # pngquant is a lossy compression tool

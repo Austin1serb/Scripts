@@ -32,7 +32,7 @@ The 966-line monolithic script has been refactored into a clean, maintainable pa
 | Lines 406-434 | `ingestion.py` | Photo ingestion |
 | Lines 437-516 | `utils/filename.py` | Filename parsing and scoring |
 | Lines 518-582 | `clustering/fused.py` | Fused clustering |
-| Lines 590-677 | `classification/openai_classifier.py` | OpenAI classification |
+| Lines 590-677 | `ai_classification/openai_classifier.py` | OpenAI ai_classification |
 | Lines 685-730 | `clustering/temporal.py` | Time+hash clustering |
 | Lines 146-163 | `clustering/gps.py` | GPS-only clustering |
 | Lines 738-797 | `organization.py` | File organization |
@@ -74,7 +74,7 @@ organize(groups, labels, out_dir, brand, rotate_cities)
 # Clean imports from modules
 from photo_organizer.ingestion import ingest
 from photo_organizer.clustering import cluster_temporal, cluster_gps_only, fused_cluster
-from photo_organizer.classification import classify_batches
+from photo_organizer.ai_classification import classify_batches
 from photo_organizer.organization import organize
 from photo_organizer.utils.filename import name_features
 
@@ -145,14 +145,14 @@ This installs the package in editable mode, allowing you to modify the code and 
 
 ### With Optional Dependencies
 ```bash
-# With OpenAI classification support
-pip install -e ".[classification]"
+# With OpenAI ai_classification support
+pip install -e ".[ai_classification]"
 
 # With development tools
 pip install -e ".[dev]"
 
 # With everything
-pip install -e ".[classification,dev]"
+pip install -e ".[ai_classification,dev]"
 ```
 
 ## Running Tests

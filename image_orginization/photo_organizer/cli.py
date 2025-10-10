@@ -4,7 +4,7 @@ CLI entry point for Photo Organizer.
 
 Pipeline:
  1) ingest: walk input folder, make thumbnails, extract EXIF time/GPS, compute pHash
- 2) classify: batch multi-image classification with ChatGPT Vision (Structured Outputs)
+ 2) classify: batch multi-image ai_classification with ChatGPT Vision (Structured Outputs)
  3) cluster: time + pHash centroid with AND logic
  4) label: majority vote per cluster, optional API refinement for ambiguous clusters
  5) organize: assign city, generate SEO filenames, write manifest, copy/move originals
@@ -46,7 +46,7 @@ from .config import (
     DEFAULT_ASSIGN_SINGLETONS,
 )
 from .ingestion import ingest
-from .classification import classify_batches, assign_singletons_batched
+from .ai_classification import classify_batches, assign_singletons_batched
 from .clustering import cluster_gps_only, fused_cluster, cluster_phash_only
 from .organization import organize
 from .utils.filename import name_features
@@ -100,7 +100,7 @@ def main():
         "--classify",
         action="store_true",
         default=DEFAULT_CLASSIFY,
-        help="Use ChatGPT multi-image classification",
+        help="Use ChatGPT multi-image ai_classification",
     )
     ap.add_argument(
         "--assign-singletons",
@@ -402,7 +402,7 @@ if __name__ == "__main__":
                 f"--batch-size {DEFAULT_BATCH_SIZE} "
                 f"--hash-threshold {DEFAULT_HASH_THRESHOLD} "
                 f"--model {DEFAULT_MODEL} "
-                # "--classify"  # Use ChatGPT multi-image classification
+                # "--classify"  # Use ChatGPT multi-image ai_classification
                 "--dry-run "  # Do everything except copy originals
                 "--rotate-cities "  # Rotate cities if GPS missing
             )

@@ -9,7 +9,7 @@ AI-powered construction photo organization pipeline that intelligently clusters,
   - GPS-based clustering for photos at the same physical location
   - Fused clustering using filename patterns, perceptual hashes, and timestamps
   - Temporal clustering with time gaps and hash centroids
-- **AI Classification**: Optional OpenAI Vision API integration for concrete construction type classification
+- **AI Classification**: Optional OpenAI Vision API integration for concrete construction type ai_classification
 - **SEO-Optimized Output**: Generates meaningful folder structures and filenames with brand, surface type, city, and unique identifiers
 
 ## Project Structure
@@ -34,7 +34,7 @@ image_orginization/
 │   │   ├── gps.py            # GPS-based clustering
 │   │   ├── fused.py          # Multi-feature fusion clustering
 │   │   └── temporal.py       # Time-based clustering
-│   └── classification/       # AI classification
+│   └── ai_classification/       # AI ai_classification
 │       ├── __init__.py
 │       └── openai_classifier.py  # OpenAI Vision integration
 ├── requirements.txt
@@ -103,7 +103,7 @@ python main.py run \
   --hash-threshold 8 \            # Max perceptual hash distance
   --site-distance-feet 300 \      # GPS clustering radius
   --rotate-cities \               # Rotate city names if no GPS
-  --classify \                    # Enable AI classification
+  --classify \                    # Enable AI ai_classification
   --batch-size 12 \              # Images per API batch
   --model gpt-4o \               # OpenAI model
   --dry-run                       # Test without copying files
@@ -119,7 +119,7 @@ python main.py run \
 | `--time-gap-min` | `20` | Max minutes between photos in same cluster |
 | `--hash-threshold` | `6` | Max pHash distance for same cluster |
 | `--site-distance-feet` | `300.0` | GPS clustering radius in feet |
-| `--classify` | `False` | Enable OpenAI classification |
+| `--classify` | `False` | Enable OpenAI ai_classification |
 | `--model` | `gpt-4o` | OpenAI vision model |
 | `--batch-size` | `12` | Images per API batch |
 | `--rotate-cities` | `False` | Rotate cities if GPS missing |
@@ -158,7 +158,7 @@ output/
    - Photos without GPS: fused clustering using filename patterns, hashes, and timestamps
 
 3. **Classification** (optional):
-   - Batch classification using OpenAI Vision API
+   - Batch ai_classification using OpenAI Vision API
    - Structured output with confidence scores
    - Labels: concrete-patio, driveway, walkway, retaining-wall, etc.
 
@@ -209,7 +209,7 @@ pytest tests/
 - `models.py`: Data structures used throughout the pipeline
 - `utils/`: Reusable utility functions organized by concern
 - `clustering/`: Different clustering strategies as separate modules
-- `classification/`: AI classification logic
+- `ai_classification/`: AI ai_classification logic
 - `ingestion.py`: Photo ingestion pipeline
 - `organization.py`: Output organization logic
 - `cli.py`: Command-line interface
@@ -221,7 +221,7 @@ The original monolithic `v1_photo_cli.py` (966 lines) has been refactored into a
 Key improvements:
 - Separated concerns into logical modules
 - Better testability with isolated functions
-- Easier to extend with new clustering or classification strategies
+- Easier to extend with new clustering or ai_classification strategies
 - Clear dependencies and imports
 - Comprehensive documentation
 

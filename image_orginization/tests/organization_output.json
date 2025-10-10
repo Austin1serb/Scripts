@@ -1,0 +1,150 @@
+{
+  "status": "success",
+  "total_images": 10,
+  "output_directory": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized",
+  "manifest_file": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/manifest.json",
+  "ai_results_used": {
+    "IMG_5805.JPG": {
+      "label": "stamped-concrete-patio",
+      "confidence": 0.95,
+      "descriptor": "Outdoor space with stamped concrete patterns and steps."
+    },
+    "IMG_5636.JPG": {
+      "label": "concrete-driveway",
+      "confidence": 0.85,
+      "descriptor": "Under-construction driveway with concrete framework."
+    },
+    "IMG_5391.JPG": {
+      "label": "decorative-concrete",
+      "confidence": 0.9,
+      "descriptor": "Decorative concrete with intricate star pattern."
+    },
+    "IMG_7237.JPG": {
+      "label": "concrete-steps",
+      "confidence": 0.92,
+      "descriptor": "Concrete steps with smooth surface and sidewalls."
+    },
+    "IMG_5346.JPG": {
+      "label": "concrete-patio",
+      "confidence": 0.88,
+      "descriptor": "Outdoor patio area with plain concrete surface."
+    },
+    "IMG_7196.JPG": {
+      "label": "concrete-walkway",
+      "confidence": 0.9,
+      "descriptor": "Concrete walkway with decorative pattern next to stone columns."
+    },
+    "IMG_6263.JPG": {
+      "label": "unknown",
+      "confidence": 0.3,
+      "descriptor": "Stone bench with plaque in a natural setting."
+    },
+    "IMG_5742.JPG": {
+      "label": "stamped-concrete-walkway",
+      "confidence": 0.95,
+      "descriptor": "Stamped concrete walkway with reddish hue and stone borders."
+    },
+    "IMG_6262.JPG": {
+      "label": "unknown",
+      "confidence": 0.3,
+      "descriptor": "Close-up of a plaque on a stone surface."
+    },
+    "IMG_7197.JPG": {
+      "label": "concrete-walkway",
+      "confidence": 0.9,
+      "descriptor": "Circular concrete patio area with a central feature and walkway."
+    }
+  },
+  "clusters": [
+    {
+      "cluster_id": 1,
+      "items": [
+        {
+          "id": "IMG_5805.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_5805.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 2,
+      "items": [
+        {
+          "id": "IMG_5636.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_5636.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 3,
+      "items": [
+        {
+          "id": "IMG_5391.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_5391.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 4,
+      "items": [
+        {
+          "id": "IMG_7237.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_7237.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 5,
+      "items": [
+        {
+          "id": "IMG_5346.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_5346.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 6,
+      "items": [
+        {
+          "id": "IMG_7196.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_7196.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 7,
+      "items": [
+        {
+          "id": "IMG_6263.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_6263.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 8,
+      "items": [
+        {
+          "id": "IMG_5742.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_5742.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 9,
+      "items": [
+        {
+          "id": "IMG_6262.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_6262.JPG"
+        }
+      ]
+    },
+    {
+      "cluster_id": 10,
+      "items": [
+        {
+          "id": "IMG_7197.JPG",
+          "path": "/Users/austinserb/Desktop/RC Photos/IMG_7197.JPG"
+        }
+      ]
+    }
+  ]
+}
