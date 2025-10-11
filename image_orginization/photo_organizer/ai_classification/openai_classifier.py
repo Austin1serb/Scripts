@@ -1,9 +1,8 @@
-"""OpenAI GPT Vision-based image ai_classification and singleton assignment."""
+"""OpenAI GPT Vision-based image classification and singleton assignment."""
 
-import base64
-import json
 from pathlib import Path
 from typing import List, Dict
+
 from ..models import Item
 from ..config import (
     LABELS,
@@ -12,13 +11,26 @@ from ..config import (
     CLUSTER_SAMPLES_PER_CLUSTER,
     MAX_CLUSTERS_PER_CALL,
     MAX_SINGLETONS_TO_ASSIGN,
+    DEFAULT_MODEL,
+)
+
+from .utils import (
+    parse_json_response,
+    create_image_message,
+    create_singleton_image_message,
+    create_cluster_sample_message,
+)
+from .schemas import get_classification_schema, get_singleton_assignment_schema
+from .messages import (
+    build_classification_messages,
+    build_singleton_assignment_messages,
+    add_cluster_label_message,
 )
 
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
 
-    # Load .env from project root (parent directory of photo_organizer)
     project_root = Path(__file__).parent.parent.parent
     load_dotenv(project_root / ".env", override=True)
 except ImportError:  # pragma: no cover
@@ -29,18 +41,6 @@ try:
     from openai import OpenAI  # type: ignore
 except Exception:  # pragma: no cover
     OpenAI = None  # type: ignore
-
-
-def b64(path: Path) -> str:
-    """Encode file as base64 string.
-
-    Args:
-        path: Path to file
-
-    Returns:
-        Base64-encoded string
-    """
-    return base64.b64encode(path.read_bytes()).decode()
 
 
 def classify_batches(
@@ -63,7 +63,7 @@ def classify_batches(
         Dictionary mapping item IDs to classification results
     """
     if OpenAI is None:
-        print("[warn] openai package not installed, skipping ai_classification")
+        print("[warn] openai package not installed, skipping classification")
         return {
             i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""}
             for i in items
@@ -74,67 +74,33 @@ def classify_batches(
 
     # Use custom schema if provided, otherwise use default classification schema
     if schema is None:
-        schema = {
-            "name": "batch_classify_cluster",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "images": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "string"},
-                                "label": {"type": "string", "enum": LABELS},
-                                "confidence": {
-                                    "type": "number",
-                                    "minimum": 0,
-                                    "maximum": 1,
-                                },
-                                "descriptor": {"type": "string"},
-                            },
-                            "required": ["id", "label", "confidence", "descriptor"],
-                            "additionalProperties": False,
-                        },
-                    }
-                },
-                "required": ["images"],
-                "additionalProperties": False,
-            },
-        }
+        schema = get_classification_schema(LABELS)
 
     def do_batch(batch: List[Item]):
         """Process a single batch of images."""
-        # Use custom messages if provided, otherwise use default classification messages
-        batch_messages = messages if messages is not None else MESSAGES.copy()
-
-        for it in batch:
-            if messages is None:
-                # Default classification behavior
-                batch_messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": f"id={it.id}"},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{b64(it.thumb)}"
-                                },
-                            },
-                        ],
-                    }
+        # Build base messages
+        if messages is not None:
+            batch_messages = messages.copy()
+            if not batch_messages:
+                raise ValueError(
+                    "Custom messages list is empty; at least one message is required."
                 )
-            # For custom messages, they should already include the image data
+        else:
+            batch_messages = build_classification_messages(MESSAGES)
 
+        # Append each image from the batch to the messages
+        for it in batch:
+            batch_messages.append(create_image_message(it.id, it.thumb))
+
+        # Call OpenAI API
         resp = client.chat.completions.create(
             model=model,
             response_format={"type": "json_schema", "json_schema": schema},
             messages=batch_messages,
         )
 
-        data = json.loads(resp.choices[0].message.content)
+        # Parse response
+        data = parse_json_response(resp.choices[0].message.content)
         for row in data.get("images", []):
             out[row["id"]] = {
                 "label": row.get("label", "unknown"),
@@ -152,7 +118,7 @@ def classify_batches(
 def assign_singletons_batched(
     singleton_items: List[Item],
     multi_photo_clusters: List[List[Item]],
-    model: str = "gpt-4o",
+    model: str = DEFAULT_MODEL,
 ) -> Dict[str, int]:
     """Match singleton photos to existing clusters using AI vision (BATCHED).
 
@@ -208,73 +174,20 @@ def assign_singletons_batched(
     # Limit clusters per API call to avoid token limits
     clusters_to_show = cluster_samples[:MAX_CLUSTERS_PER_CALL]
 
-    # JSON schema for structured output
-    schema = {
-        "name": "singleton_assignment",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "assignments": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "singleton_id": {"type": "string"},
-                            "cluster_id": {"type": "integer"},
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                            },
-                            "reason": {"type": "string"},
-                        },
-                        "required": ["singleton_id", "cluster_id", "confidence"],
-                        "additionalProperties": False,
-                    },
-                }
-            },
-            "required": ["assignments"],
-            "additionalProperties": False,
-        },
-    }
+    # Get JSON schema for structured output
+    schema = get_singleton_assignment_schema()
 
     def do_batch(batch: List[Item]):
         """Process a batch of singletons."""
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are an expert at matching construction photos to project clusters. "
-                    "For each singleton photo, determine which existing cluster (if any) it belongs to. "
-                    "Consider: visual similarity, materials, construction phase, lighting, and context. "
-                    "Return cluster_id=-1 if no good match exists."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"I have {len(batch)} singleton photos and {len(clusters_to_show)} existing clusters. "
-                    f"For each singleton, return the cluster_id it belongs to (or -1 for no match)."
-                ),
-            },
-        ]
+        # Build initial messages
+        messages = build_singleton_assignment_messages(
+            len(batch), len(clusters_to_show)
+        )
 
         # Add singleton photos
         for singleton in batch:
             messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"SINGLETON id={singleton.id}"},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{b64(singleton.thumb)}"
-                            },
-                        },
-                    ],
-                }
+                create_singleton_image_message(singleton.id, singleton.thumb)
             )
 
         # Add cluster sample photos
@@ -283,28 +196,11 @@ def assign_singletons_batched(
             samples = cluster_info["samples"]
 
             # Add text label for cluster
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"CLUSTER {cluster_id} ({len(samples)} sample photos):",
-                }
-            )
+            add_cluster_label_message(messages, cluster_id, len(samples))
 
             # Add sample images from this cluster
             for sample_item in samples:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{b64(sample_item.thumb)}"
-                                },
-                            }
-                        ],
-                    }
-                )
+                messages.append(create_cluster_sample_message(sample_item.thumb))
 
         # Call OpenAI API
         resp = client.chat.completions.create(
@@ -314,7 +210,7 @@ def assign_singletons_batched(
         )
 
         # Parse response
-        data = json.loads(resp.choices[0].message.content)
+        data = parse_json_response(resp.choices[0].message.content)
         print("raw_response: ", data)
         for assignment in data.get("assignments", []):
             singleton_id = assignment["singleton_id"]

@@ -23,7 +23,8 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from photo_organizer.models import Item
-from photo_organizer.ai_classification.openai_classifier import classify_batches, b64
+from photo_organizer.ai_classification.openai_classifier import classify_batches
+from photo_organizer.ai_classification.utils import b64
 
 
 BATCH_SIZE = 5

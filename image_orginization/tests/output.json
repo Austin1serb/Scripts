@@ -4,53 +4,53 @@
   "results": {
     "IMG_5805.JPG": {
       "label": "decorative-concrete",
-      "confidence": 0.9,
-      "descriptor": "stamped pattern, steps"
+      "confidence": 0.85,
+      "descriptor": "stamped with color"
     },
     "IMG_5636.JPG": {
-      "label": "unknown",
-      "confidence": 0.5,
-      "descriptor": "gravel, rebar, layout"
+      "label": "driveway-replacement",
+      "confidence": 0.9,
+      "descriptor": "wire mesh preparation"
     },
     "IMG_5391.JPG": {
       "label": "decorative-concrete",
-      "confidence": 0.8,
-      "descriptor": "intricate star pattern"
+      "confidence": 0.95,
+      "descriptor": "compass rose design"
     },
     "IMG_7237.JPG": {
       "label": "concrete-steps",
-      "confidence": 0.95,
-      "descriptor": "curved, light texture"
+      "confidence": 0.9,
+      "descriptor": "smooth finish, curved"
     },
     "IMG_5346.JPG": {
       "label": "concrete-patio",
       "confidence": 0.85,
-      "descriptor": "smooth finish, outdoor furniture"
+      "descriptor": "large tile pattern"
     },
     "IMG_7196.JPG": {
       "label": "concrete-patio",
-      "confidence": 0.8,
-      "descriptor": "saw-cut pattern"
+      "confidence": 0.85,
+      "descriptor": "diagonal score lines"
     },
     "IMG_6263.JPG": {
       "label": "unknown",
       "confidence": 0.5,
-      "descriptor": "concrete bench structure"
+      "descriptor": "stone bench with plaque"
     },
     "IMG_5742.JPG": {
-      "label": "concrete-walkway",
-      "confidence": 0.85,
-      "descriptor": "stamped, wood-like texture"
+      "label": "stamped-concrete-walkway",
+      "confidence": 0.9,
+      "descriptor": "wood plank pattern"
     },
     "IMG_6262.JPG": {
       "label": "unknown",
       "confidence": 0.5,
-      "descriptor": "concrete bench with plaque"
+      "descriptor": "engraved memorial plaque"
     },
     "IMG_7197.JPG": {
-      "label": "concrete-walkway",
-      "confidence": 0.8,
-      "descriptor": "geometric pattern design"
+      "label": "concrete-patio",
+      "confidence": 0.88,
+      "descriptor": "circular design center"
     }
   },
   "test_images": [

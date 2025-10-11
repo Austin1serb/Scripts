@@ -18,13 +18,15 @@ def register_heif():
         pass
 
 
-def ensure_thumb(src: Path, dst: Path, max_px: int = 768):
+def ensure_thumb(src: Path, dst: Path, max_px: int = 512):
     """Create a thumbnail for the given image.
 
     Args:
         src: Source image path
         dst: Destination thumbnail path
-        max_px: Maximum dimension in pixels (default: 768)
+        max_px: Maximum dimension in pixels (default: 512)
+            Note: 512px keeps images as single tile for GPT-4 Vision (85 tokens)
+            vs 768px which uses 4 tiles (765 tokens) - 89% cost reduction!
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as im:
@@ -146,7 +148,7 @@ def _process_single_thumbnail(
 def create_thumbnails_batch(
     files: List[Path],
     thumbs_dir: Path,
-    max_px: int = 768,
+    max_px: int = 512,
     max_workers: Optional[int] = None,
 ) -> Dict[Path, Path]:
     """Create thumbnails for multiple files concurrently using multiprocessing.
@@ -157,7 +159,8 @@ def create_thumbnails_batch(
     Args:
         files: List of source image paths
         thumbs_dir: Directory to store thumbnails
-        max_px: Maximum dimension in pixels (default: 768)
+        max_px: Maximum dimension in pixels (default: 512)
+            Note: 512px = single tile for GPT-4 Vision (89% token reduction vs 768px)
         max_workers: Maximum number of processes (default: CPU count)
 
     Returns:

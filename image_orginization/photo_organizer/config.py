@@ -8,39 +8,36 @@ from pathlib import Path
 IMAGE_DIR = "/Users/austinserb/Desktop/RC Photos"
 # IMAGE_DIR = "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/"
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
-
-# =============================================================================
-# CLI DEFAULT PARAMETERS
-# =============================================================================
-# Paths
 DEFAULT_OUTPUT_DIR = str(SCRIPT_DIR / "organized")
-DEFAULT_BRAND = ""
-# GPS Clustering
-DEFAULT_SITE_DISTANCE_FEET = 900.0
-# Fused Clustering (non-GPS photos)
-DEFAULT_TIME_GAP_MINUTES = 60  # Max time gap (minutes)
+# =============================================================================
+# EXECUTION
+# =============================================================================
+DEFAULT_BRAND = "RC Concrete"
+DEFAULT_ROTATE_CITIES = True
+DEFAULT_DRY_RUN = False
+# =============================================================================
+# CLUSTERING
+# =============================================================================
+DEFAULT_SITE_DISTANCE_FEET = 900.0  # GPS Clustering
+DEFAULT_TIME_GAP_MINUTES = 60  # Max time gap photo in same cluster
 
-#! sweet spot 14-16
-DEFAULT_HASH_THRESHOLD = (
-    14  # Max perceptual hash distance (0-64) - Try: 6 (strict), 12 (medium), 20 (loose)
-)
+# sweet spot 14-16
+DEFAULT_HASH_THRESHOLD = 14  # Max perceptual hash distance (0-64)
 DEFAULT_FUSE_THRESHOLD = 0.5  # Min similarity score (0.0-1.0)
 DEFAULT_MAX_EDGES = 32  # Max connections per photo
-# AI Classification
+
+# ? AI Classification
+DEFAULT_AI_CLASSIFY = False
 DEFAULT_MODEL = "o4-mini"
-DEFAULT_BATCH_SIZE = 12
-DEFAULT_CLASSIFY = False
-# AI Singleton Assignment
-DEFAULT_ASSIGN_SINGLETONS = (
-    False  # Try to match singletons to existing clusters using AI
-)
-MAX_SINGLETONS_TO_ASSIGN = 20  # Max singletons to process (for testing/cost control)
+DEFAULT_BATCH_SIZE = 12  # Images per API call
+THUMBNAIL_SIZE = 512  # Thumbnail Size
+# ? AI Singleton Assignment
+DEFAULT_ASSIGN_SINGLETONS = False  # match singletons to clusters using AI
+MAX_SINGLETONS_TO_ASSIGN = 20  # Max singletons to process
 SINGLETON_BATCH_SIZE = 5  # Process N singletons per API call
 CLUSTER_SAMPLES_PER_CLUSTER = 2  # Show AI N sample images from each cluster
 MAX_CLUSTERS_PER_CALL = 10  # Max clusters to compare against per API call
-# Execution
-DEFAULT_ROTATE_CITIES = True
-DEFAULT_DRY_RUN = True
+
 
 # =============================================================================
 # FUSED CLUSTERING WEIGHTS

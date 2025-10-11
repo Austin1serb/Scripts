@@ -42,7 +42,7 @@ from .config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_ROTATE_CITIES,
     DEFAULT_DRY_RUN,
-    DEFAULT_CLASSIFY,
+    DEFAULT_AI_CLASSIFY,
     DEFAULT_ASSIGN_SINGLETONS,
 )
 from .ingestion import ingest
@@ -99,7 +99,7 @@ def main():
     ap.add_argument(
         "--classify",
         action="store_true",
-        default=DEFAULT_CLASSIFY,
+        default=DEFAULT_AI_CLASSIFY,
         help="Use ChatGPT multi-image ai_classification",
     )
     ap.add_argument(

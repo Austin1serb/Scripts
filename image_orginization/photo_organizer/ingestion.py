@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 from tqdm import tqdm
 from .models import Item
-from .config import SUPPORTED_EXTS
+from .config import SUPPORTED_EXTS, THUMBNAIL_SIZE
 from .utils.image import register_heif, ensure_thumb, phash
 from .utils.exif import read_exif_batch
 
@@ -40,7 +40,7 @@ def ingest(input_dir: Path, work_dir: Path, max_workers: int = 8) -> List[Item]:
     for p in tqdm(files, desc="Creating thumbnails", unit="img"):
         thumb = thumbs_dir / f"{p.stem}.jpg"
         try:
-            ensure_thumb(p, thumb)
+            ensure_thumb(p, thumb, max_px=THUMBNAIL_SIZE)
             valid_files.append(p)
         except Exception as e:
             print(f"[warn] thumb failed for {p.name}: {e}")
