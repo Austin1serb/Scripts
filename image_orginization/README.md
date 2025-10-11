@@ -231,4 +231,4 @@ MIT
 
 ## Author
 
-Austin Serb - Serbyte Solutions
+Austin Serb - Serbyte Development

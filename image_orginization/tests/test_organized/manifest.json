@@ -1,16 +1,16 @@
 [
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_5805.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-01-patio-puyallup/rc-concrete-stamped-concrete-patio-patio-puyallup-482ab203181c.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-01-decorative-puyallup/rc-concrete-decorative-concrete-decorative-puyallup-482ab203181c.jpg",
     "cluster": 1,
-    "label": "stamped-concrete-patio",
+    "label": "decorative-concrete",
     "city": "puyallup"
   },
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_5636.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-02-driveway-bellevue/rc-concrete-concrete-driveway-driveway-bellevue-1f690a2e4d93.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-02-project-bellevue/rc-concrete-concrete-company-project-bellevue-1f690a2e4d93.jpg",
     "cluster": 2,
-    "label": "concrete-driveway",
+    "label": "unknown",
     "city": "bellevue"
   },
   {
@@ -29,16 +29,16 @@
   },
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_5346.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-05-patio-bellevue/rc-concrete-concrete-patio-patio-bellevue-9bfc8314ff43.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-05-high-end-bellevue/rc-concrete-concrete-patio-high-end-bellevue-9bfc8314ff43.jpg",
     "cluster": 5,
     "label": "concrete-patio",
     "city": "bellevue"
   },
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_7196.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-06-walkway-tacoma/rc-concrete-concrete-walkway-walkway-tacoma-aaf08a5bb817.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-06-high-end-tacoma/rc-concrete-concrete-patio-high-end-tacoma-aaf08a5bb817.jpg",
     "cluster": 6,
-    "label": "concrete-walkway",
+    "label": "concrete-patio",
     "city": "tacoma"
   },
   {
@@ -50,9 +50,9 @@
   },
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_5742.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-08-walkway-bellevue/rc-concrete-stamped-concrete-walkway-walkway-bellevue-4dc934175d61.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-08--bellevue/rc-concrete-concrete-walkway-bellevue-4dc934175d61.jpg",
     "cluster": 8,
-    "label": "stamped-concrete-walkway",
+    "label": "concrete-walkway",
     "city": "bellevue"
   },
   {
@@ -64,7 +64,7 @@
   },
   {
     "src": "/Users/austinserb/Desktop/RC Photos/IMG_7197.JPG",
-    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-10-walkway-puyallup/rc-concrete-concrete-walkway-walkway-puyallup-07a8778a7e96.jpg",
+    "dst": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/cluster-10--puyallup/rc-concrete-concrete-walkway-puyallup-07a8778a7e96.jpg",
     "cluster": 10,
     "label": "concrete-walkway",
     "city": "puyallup"

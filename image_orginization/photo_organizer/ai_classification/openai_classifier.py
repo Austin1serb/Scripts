@@ -43,19 +43,24 @@ def b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode()
 
 
-def classify_batches(items: List[Item], batch_size: int, model: str) -> Dict[str, Dict]:
+def classify_batches(
+    items: List[Item],
+    batch_size: int,
+    model: str,
+    messages: List[Dict] = None,
+    schema: Dict = None,
+) -> Dict[str, Dict]:
     """Classify images in batches using OpenAI Vision API with structured outputs.
 
     Args:
         items: List of items to classify
         batch_size: Number of images per API batch
         model: OpenAI model to use (e.g., 'gpt-4o')
+        messages: Optional custom messages for the API call
+        schema: Optional custom JSON schema for response format
 
     Returns:
-        Dictionary mapping item IDs to ai_classification results containing:
-            - label: Classification label
-            - confidence: Confidence score (0-1)
-            - descriptor: Short description
+        Dictionary mapping item IDs to classification results
     """
     if OpenAI is None:
         print("[warn] openai package not installed, skipping ai_classification")
@@ -67,61 +72,66 @@ def classify_batches(items: List[Item], batch_size: int, model: str) -> Dict[str
     client = OpenAI()
     out: Dict[str, Dict] = {}
 
-    # JSON schema for structured output
-    schema = {
-        "name": "batch_classify_cluster",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "label": {"type": "string", "enum": LABELS},
-                            "confidence": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
+    # Use custom schema if provided, otherwise use default classification schema
+    if schema is None:
+        schema = {
+            "name": "batch_classify_cluster",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "images": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string"},
+                                "label": {"type": "string", "enum": LABELS},
+                                "confidence": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                },
+                                "descriptor": {"type": "string"},
                             },
-                            "descriptor": {"type": "string"},
+                            "required": ["id", "label", "confidence", "descriptor"],
+                            "additionalProperties": False,
                         },
-                        "required": ["id", "label", "confidence", "descriptor"],
-                        "additionalProperties": False,
-                    },
-                }
+                    }
+                },
+                "required": ["images"],
+                "additionalProperties": False,
             },
-            "required": ["images"],
-            "additionalProperties": False,
-        },
-    }
+        }
 
     def do_batch(batch: List[Item]):
         """Process a single batch of images."""
-        messages = MESSAGES.copy()
+        # Use custom messages if provided, otherwise use default classification messages
+        batch_messages = messages if messages is not None else MESSAGES.copy()
 
         for it in batch:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"id={it.id}"},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{b64(it.thumb)}"
+            if messages is None:
+                # Default classification behavior
+                batch_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": f"id={it.id}"},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{b64(it.thumb)}"
+                                },
                             },
-                        },
-                    ],
-                }
-            )
+                        ],
+                    }
+                )
+            # For custom messages, they should already include the image data
 
         resp = client.chat.completions.create(
             model=model,
             response_format={"type": "json_schema", "json_schema": schema},
-            messages=messages,
+            messages=batch_messages,
         )
 
         data = json.loads(resp.choices[0].message.content)

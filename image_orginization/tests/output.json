@@ -1,7 +1,58 @@
 {
-  "status": "error",
-  "error": "name 'Spinner' is not defined",
+  "status": "success",
   "total_images": 10,
+  "results": {
+    "IMG_5805.JPG": {
+      "label": "decorative-concrete",
+      "confidence": 0.9,
+      "descriptor": "stamped pattern, steps"
+    },
+    "IMG_5636.JPG": {
+      "label": "unknown",
+      "confidence": 0.5,
+      "descriptor": "gravel, rebar, layout"
+    },
+    "IMG_5391.JPG": {
+      "label": "decorative-concrete",
+      "confidence": 0.8,
+      "descriptor": "intricate star pattern"
+    },
+    "IMG_7237.JPG": {
+      "label": "concrete-steps",
+      "confidence": 0.95,
+      "descriptor": "curved, light texture"
+    },
+    "IMG_5346.JPG": {
+      "label": "concrete-patio",
+      "confidence": 0.85,
+      "descriptor": "smooth finish, outdoor furniture"
+    },
+    "IMG_7196.JPG": {
+      "label": "concrete-patio",
+      "confidence": 0.8,
+      "descriptor": "saw-cut pattern"
+    },
+    "IMG_6263.JPG": {
+      "label": "unknown",
+      "confidence": 0.5,
+      "descriptor": "concrete bench structure"
+    },
+    "IMG_5742.JPG": {
+      "label": "concrete-walkway",
+      "confidence": 0.85,
+      "descriptor": "stamped, wood-like texture"
+    },
+    "IMG_6262.JPG": {
+      "label": "unknown",
+      "confidence": 0.5,
+      "descriptor": "concrete bench with plaque"
+    },
+    "IMG_7197.JPG": {
+      "label": "concrete-walkway",
+      "confidence": 0.8,
+      "descriptor": "geometric pattern design"
+    }
+  },
   "test_images": [
     {
       "id": "IMG_5805.JPG",

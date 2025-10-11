@@ -26,8 +26,8 @@ from photo_organizer.models import Item
 from photo_organizer.ai_classification.openai_classifier import classify_batches, b64
 
 
-BATCH_SIZE = 1
-MAX_API_CALLS = 1  # Limit API calls for testing
+BATCH_SIZE = 5
+MAX_API_CALLS = 4  # Limit API calls for testing
 
 
 def load_existing_images() -> List[Item]:

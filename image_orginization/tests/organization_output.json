@@ -5,54 +5,54 @@
   "manifest_file": "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/tests/test_organized/manifest.json",
   "ai_results_used": {
     "IMG_5805.JPG": {
-      "label": "stamped-concrete-patio",
-      "confidence": 0.95,
-      "descriptor": "Outdoor space with stamped concrete patterns and steps."
+      "label": "decorative-concrete",
+      "confidence": 0.9,
+      "descriptor": "stamped pattern, steps"
     },
     "IMG_5636.JPG": {
-      "label": "concrete-driveway",
-      "confidence": 0.85,
-      "descriptor": "Under-construction driveway with concrete framework."
+      "label": "unknown",
+      "confidence": 0.5,
+      "descriptor": "gravel, rebar, layout"
     },
     "IMG_5391.JPG": {
       "label": "decorative-concrete",
-      "confidence": 0.9,
-      "descriptor": "Decorative concrete with intricate star pattern."
+      "confidence": 0.8,
+      "descriptor": "intricate star pattern"
     },
     "IMG_7237.JPG": {
       "label": "concrete-steps",
-      "confidence": 0.92,
-      "descriptor": "Concrete steps with smooth surface and sidewalls."
+      "confidence": 0.95,
+      "descriptor": "curved, light texture"
     },
     "IMG_5346.JPG": {
       "label": "concrete-patio",
-      "confidence": 0.88,
-      "descriptor": "Outdoor patio area with plain concrete surface."
+      "confidence": 0.85,
+      "descriptor": "smooth finish, outdoor furniture"
     },
     "IMG_7196.JPG": {
-      "label": "concrete-walkway",
-      "confidence": 0.9,
-      "descriptor": "Concrete walkway with decorative pattern next to stone columns."
+      "label": "concrete-patio",
+      "confidence": 0.8,
+      "descriptor": "saw-cut pattern"
     },
     "IMG_6263.JPG": {
       "label": "unknown",
-      "confidence": 0.3,
-      "descriptor": "Stone bench with plaque in a natural setting."
+      "confidence": 0.5,
+      "descriptor": "concrete bench structure"
     },
     "IMG_5742.JPG": {
-      "label": "stamped-concrete-walkway",
-      "confidence": 0.95,
-      "descriptor": "Stamped concrete walkway with reddish hue and stone borders."
+      "label": "concrete-walkway",
+      "confidence": 0.85,
+      "descriptor": "stamped, wood-like texture"
     },
     "IMG_6262.JPG": {
       "label": "unknown",
-      "confidence": 0.3,
-      "descriptor": "Close-up of a plaque on a stone surface."
+      "confidence": 0.5,
+      "descriptor": "concrete bench with plaque"
     },
     "IMG_7197.JPG": {
       "label": "concrete-walkway",
-      "confidence": 0.9,
-      "descriptor": "Circular concrete patio area with a central feature and walkway."
+      "confidence": 0.8,
+      "descriptor": "geometric pattern design"
     }
   },
   "clusters": [
