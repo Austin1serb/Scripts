@@ -114,6 +114,7 @@ RETRY_DELAY = 5.0           # Initial retry delay (uses exponential backoff)
    - Optional singleton assignment to merge single-photo clusters
 
 4. **Organization**:
+   - Creates organized photos in: `{output}/organized_photos/`
    - Creates folders: `{label}-{city}` (e.g., `stamped-concrete-driveway-bellevue`)
    - Generates SEO-optimized filenames with **semantic keyword rotation**
    - Format: `{keyword}[-{surface}]-{city}-{brand}-{index}.jpg`

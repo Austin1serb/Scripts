@@ -195,7 +195,19 @@ Saved to: _work/labels.json
 STEP 4: ORGANIZATION
 Create organized folders and rename files with SEO-friendly names
 
-Function: organize(groups, labels, out_dir, brand, rotate_cities) - organization.py
+Function: organize(groups, labels, organized_dir, brand, rotate_cities) - organization.py
+
+Output Structure:
+{output}/
+├── _work/                    # Working files (metadata, thumbnails)
+│   ├── ingest.json
+│   ├── clusters.json
+│   ├── labels.json
+│   └── thumbs/
+└── organized_photos/         # Final organized output (NEW)
+    ├── stamped-concrete-driveway-bellevue/
+    ├── concrete-patio-tacoma/
+    └── manifest.json
 
 For each cluster:
 
@@ -298,14 +310,18 @@ Input Images
 
 OUTPUT FILES
 
-All saved to output/_work/:
-- ingest.json - All extracted metadata (datetime, GPS, pHash, filenames)
-- clusters.json - Cluster summary with strategy tags and thumbnail paths
-- Each cluster includes: count, strategy used, files with thumbnail links
-- fused_explain_no_gps.json - Clustering details for non-GPS photos
-- labels.json - Classification results (if --classify enabled)
-- manifest.json - Complete file mapping (src → dst)
-- thumbs/ - Generated thumbnails (512px JPEG, configurable via THUMBNAIL_SIZE)
+Directory Structure:
+{output}/
+├── _work/                              # Working files (metadata)
+│   ├── ingest.json                     # All extracted metadata
+│   ├── clusters.json                   # Cluster summary with strategy tags
+│   ├── fused_explain_no_gps.json       # Clustering details for non-GPS photos
+│   ├── labels.json                     # Classification results (if --classify enabled)
+│   └── thumbs/                         # Generated thumbnails (512px JPEG)
+└── organized_photos/                   # Final organized output
+    ├── {label}-{city}/                 # Organized folders by label and city
+    │   └── {keyword}-{city}-{brand}-{index}.jpg
+    └── manifest.json                   # Complete file mapping (src → dst)
 
 ================================================================================
 

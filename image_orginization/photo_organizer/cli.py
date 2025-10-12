@@ -169,7 +169,9 @@ def main():
     input_dir = Path(args.input).expanduser()
     out_dir = Path(args.output).expanduser()
     work_dir = out_dir / "_work"
+    organized_dir = out_dir / "organized_photos"  # Separate folder for final output
     work_dir.mkdir(parents=True, exist_ok=True)
+    organized_dir.mkdir(parents=True, exist_ok=True)
 
     # 1) Ingest
     print("=" * 60)
@@ -409,7 +411,7 @@ def main():
         organize(
             groups,
             labels,
-            out_dir,
+            organized_dir,  # Use separate organized_photos directory
             args.brand,
             args.rotate_cities,
             args.use_semantic_keywords,

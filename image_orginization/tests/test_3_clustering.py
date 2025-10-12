@@ -45,11 +45,18 @@ class TestGPSClustering:
             ),
         ]
 
-        # Cluster within 100 meters
-        clusters = cluster_gps_only(items, max_meters=100.0)
+        # Cluster within 100 meters - returns (multi_clusters, singletons)
+        multi_clusters, singletons = cluster_gps_only(items, max_meters=100.0)
 
-        # Should have 2 clusters: one with items 1&2, one with item 3
-        assert len(clusters) == 2
+        # Should have 1 multi-photo cluster [1,2] and 1 singleton [3]
+        assert len(multi_clusters) == 1
+        assert len(singletons) == 1
+        # Items 1&2 should be in the multi-photo cluster
+        assert len(multi_clusters[0]) == 2
+        cluster_ids = {it.id for it in multi_clusters[0]}
+        assert cluster_ids == {"1", "2"}
+        # Item 3 should be a singleton
+        assert singletons[0].id == "3"
 
     def test_cluster_gps_only_no_gps(self):
         """Test GPS clustering with no GPS data."""
@@ -64,8 +71,10 @@ class TestGPSClustering:
             ),
         ]
 
-        clusters = cluster_gps_only(items, max_meters=100.0)
-        assert len(clusters) == 0
+        # Returns (multi_clusters, singletons) - both should be empty for no GPS
+        multi_clusters, singletons = cluster_gps_only(items, max_meters=100.0)
+        assert len(multi_clusters) == 0
+        assert len(singletons) == 0
 
 
 class TestTemporalScoring:
