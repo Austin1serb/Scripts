@@ -73,8 +73,8 @@ def load_test_images() -> List[Item]:
 
 
 def load_ai_classification_results() -> Dict[str, Dict]:
-    """Load AI classification results from test_ai_classification.py output."""
-    output_file = Path(__file__).parent / "output.json"
+    """Load AI classification results from test_5_classification_ai.py output."""
+    output_file = project_root / "test_output" / "5_ai_classification_output.json"
 
     if not output_file.exists():
         raise FileNotFoundError(f"AI classification results not found at {output_file}")
@@ -137,8 +137,8 @@ def test_organization(max_images: int = 10) -> Dict[str, Any]:
     print(f"Using AI results for {len(test_ai_results)} test images")
 
     # Create test output directory
-    test_output_dir = Path(__file__).parent / "test_organized"
-    test_output_dir.mkdir(exist_ok=True)
+    test_output_dir = project_root / "test_output" / "6_organized"
+    test_output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Output directory: {test_output_dir}")
     print("\n" + "=" * 60)
@@ -218,7 +218,7 @@ def main():
         results = test_organization(max_images=10)
 
         # Save results
-        output_file = Path(__file__).parent / "organization_output.json"
+        output_file = project_root / "test_output" / "6_organization_output.json"
         with open(output_file, "w") as f:
             json.dump(results, f, indent=2, default=str)
 
@@ -242,7 +242,7 @@ def main():
             "total_images": 0,
         }
 
-        output_file = Path(__file__).parent / "organization_output.json"
+        output_file = project_root / "test_output" / "6_organization_output.json"
         with open(output_file, "w") as f:
             json.dump(error_results, f, indent=2, default=str)
 

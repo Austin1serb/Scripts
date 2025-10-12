@@ -17,6 +17,7 @@ from ..config import (
     MAX_RETRIES,
     RETRY_DELAY,
 )
+from ..utils.loading_spinner import Spinner
 
 from .utils import (
     parse_json_response,
@@ -73,17 +74,22 @@ def call_openai_with_retry(
         Exception: If all retries fail
     """
     last_error = None
+    spinner = Spinner("🤖 Waiting for AI response")
 
     for attempt in range(max_retries):
         try:
+            spinner.start()
             resp = client.chat.completions.create(
                 model=model,
                 response_format={"type": "json_schema", "json_schema": schema},
                 messages=messages,
             )
+            spinner.stop()
             return resp
 
         except Exception as e:
+            spinner.stop()
+
             # Check if it's a rate limit error (handle both old and new SDK versions)
             is_rate_limit = (
                 RateLimitError and isinstance(e, RateLimitError)
@@ -106,6 +112,7 @@ def call_openai_with_retry(
                 raise
 
     # Should never reach here, but just in case
+    spinner.stop()
     raise last_error or Exception("API call failed")
 
 
