@@ -61,7 +61,7 @@ OPERATIONS (Sequential with concurrent EXIF extraction):
 - Returns: ImageHash object
 
 5. Build Item Objects
-- Combines all metadata into Item dataclass
+- Combines all metadata into Item data class
 - Item(id, path, thumb, dt, gps, h)
 
 Output: List of Item objects
@@ -128,13 +128,27 @@ C. Test Mode: pHash-Only Clustering
 ================================================================================
 
 STEP 3: CLASSIFICATION (Optional)
-Identify surface types using OpenAI Vision API
+Identify surface types using OpenAI Vision API - OPTIMIZED for 90% cost reduction
 
-Function: classify_batches(items, batch_size, model, messages, schema) - ai_classification/openai_classifier.py
+Function: classify_cluster_examples(groups, batch_size, model) - ai_classification/openai_classifier.py
+
+OPTIMIZATION: Classify only cluster examples (1 per cluster), then propagate labels
+- Instead of classifying 100 images → classify 10 cluster examples
+- Apply each cluster's label to all images in that cluster
+- Savings: 90% fewer API calls (10 vs 100 images)
+- Rationale: Images in same cluster are same project → same concrete work type
+
+SMART EXAMPLE SELECTION: get_best_example(group) picks best representative
+- Strategy 1: Prefer GPS-tagged photos (on-site, not office/reference)
+- Strategy 2: Select middle image by timestamp (best lighting/setup)
+  - First image = often test shot
+  - Last image = often rushed
+  - Middle image = photographer warmed up, good conditions
+- Strategy 3: Fallback to largest file size (best quality/least compression)
 
 Process:
-1. Split items into batches (default: 12 images, configurable)
-2. For each batch:
+1. Select best representative image from each cluster (get_best_example)
+2. Classify only examples using classify_batches():
    - Encode thumbnails as base64
    - Call openai.chat.completions.create() with vision model
    - System prompt: "You are an image classifier for concrete construction photos. Return strict JSON only."
@@ -150,7 +164,8 @@ Process:
          }
        ]
      }
-3. Parse response for each image
+3. Propagate each example's label to all images in that cluster
+4. Return complete labels dict for all images
 
 Available labels (24 concrete construction types):
 - stamped concrete patio, stamped concrete driveway, stamped concrete walkway
@@ -256,7 +271,9 @@ Statistics & Reporting:
 - Displays singleton percentage, strategy breakdown, cluster counts
 
 Classification:
-- classify_batches(items, batch_size, model, messages, schema) - ai_classification/openai_classifier.py
+- classify_cluster_examples(groups, batch_size, model) - ai_classification/openai_classifier.py (OPTIMIZED: 90% cost savings)
+- get_best_example(group) - ai_classification/openai_classifier.py (smart example selection)
+- classify_batches(items, batch_size, model, messages, schema) - ai_classification/openai_classifier.py (fallback/testing)
 - assign_singletons_batched(singletons, clusters, model) - ai_classification/openai_classifier.py
 
 Organization:
@@ -284,7 +301,7 @@ OUTPUT FILES
 All saved to output/_work/:
 - ingest.json - All extracted metadata (datetime, GPS, pHash, filenames)
 - clusters.json - Cluster summary with strategy tags and thumbnail paths
-  - Each cluster includes: count, strategy used, files with thumbnail links
+- Each cluster includes: count, strategy used, files with thumbnail links
 - fused_explain_no_gps.json - Clustering details for non-GPS photos
 - labels.json - Classification results (if --classify enabled)
 - manifest.json - Complete file mapping (src → dst)

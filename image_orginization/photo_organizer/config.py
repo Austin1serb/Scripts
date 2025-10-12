@@ -15,6 +15,9 @@ DEFAULT_OUTPUT_DIR = str(SCRIPT_DIR / "organized")
 DEFAULT_BRAND = "RC Concrete"
 DEFAULT_ROTATE_CITIES = True
 DEFAULT_DRY_RUN = False
+
+# SEO Optimization
+USE_SEMANTIC_KEYWORDS = True  # Enable semantic keyword rotation for filenames
 # =============================================================================
 # CLUSTERING
 # =============================================================================
@@ -31,6 +34,12 @@ DEFAULT_AI_CLASSIFY = False
 DEFAULT_MODEL = "o4-mini"
 DEFAULT_BATCH_SIZE = 12  # Images per API call
 THUMBNAIL_SIZE = 512  # Thumbnail Size
+
+# ? AI Rate Limiting
+API_RATE_LIMIT_DELAY = 1.0  # Seconds to wait between API calls (0 = no delay)
+MAX_RETRIES = 3  # Max retries for failed API calls
+RETRY_DELAY = 5.0  # Seconds to wait before retrying after rate limit error
+
 # ? AI Singleton Assignment
 DEFAULT_ASSIGN_SINGLETONS = False  # match singletons to clusters using AI
 MAX_SINGLETONS_TO_ASSIGN = 20  # Max singletons to process
@@ -88,9 +97,9 @@ CITIES = {
 }
 
 # =============================================================================
-# CLASSIFICATION LABELS & MAPPING
-# <primary-intent>-<specific-surface>-<city?>-<unique>.jpg
-# Primary intent:
+# ? CLASSIFICATION LABELS & MAPPING
+# <primary-keyword>-<specific-surface>-<city?>-<unique>.jpg
+# Primary keyword:
 # - broom-finish-driveway
 # - concrete-driveway
 # - concrete-patio
@@ -98,56 +107,198 @@ CITIES = {
 # - concrete-resurfacing
 
 # =============================================================================
+# Canonical labels for classification and filename slugs
 LABELS = [
-    # Core services
-    "broom-finish-driveway",
+    # Driveways
     "concrete-driveway",
+    "driveway-replacement",
+    "broom-finish-driveway",
+    "stamped-concrete-driveway",
+    "exposed-aggregate-driveway",
+    # Patios
     "concrete-patio",
+    "stamped-concrete-patio",
+    "exposed-aggregate-patio",
+    "fire-pit-surround",
+    "seat-wall-bench",
+    # Walkways & sidewalks
+    "concrete-walkway",
+    "stamped-concrete-walkway",
+    "exposed-aggregate-walkway",
+    "sidewalk",
+    # Steps, walls, slabs
+    "concrete-steps",
+    "retaining-wall",
+    "concrete-slab",
+    # Repairs & treatments
     "concrete-repair",
     "concrete-resurfacing",
-    "concrete-steps",
-    "concrete-walkway",
+    # Broad style bucket
     "decorative-concrete",
-    "driveway-replacement",
-    "exposed-aggregate-driveway",
-    "exposed-aggregate-patio",
-    "resurfacing",
-    "retaining-wall",
-    "sidewalk",
-    "sidewalk",
-    "stamped-concrete-driveway",
-    "stamped-concrete-patio",
-    "stamped-concrete-walkway",
     # Fallback
+    "concrete-project",
     "unknown",
 ]
 
-
-SURFACE_CANON = {
-    "stamped-concrete-patio": ("stamped-concrete-patio", "decorative"),
-    "stamped-concrete-driveway": ("stamped-concrete-driveway", "driveway"),
-    "stamped-concrete-walkway": ("stamped-concrete-walkway", "walkway"),
-    "concrete-patio": ("concrete-patio", "high-end"),
-    "concrete-driveway": ("concrete-driveway", ""),
-    "concrete-walkway": ("concrete-walkway", ""),
-    "concrete-steps": ("porch-concrete", "steps"),
-    "exposed-aggregate-driveway": ("exposed-aggregate-concrete", ""),
-    "exposed-aggregate-patio": ("exposed-aggregate-concrete", ""),
-    "retaining-wall": ("retaining-wall-contractor", "concrete-retaining-wall"),
-    "concrete-repair": ("concrete-repair", "repair"),
-    "concrete-resurfacing": ("concrete-resurfacing", "resurfacing"),
-    "decorative-concrete": ("decorative-concrete", "decorative"),
-    "sidewalk": ("concrete-sidewalk", "sidewalk"),
-    "stamped-concrete-driveway": ("stamped-concrete-driveway", "driveway"),
-    "stamped-concrete-walkway": ("stamped-concrete-walkway", "walkway"),
-    "exposed-aggregate-driveway": ("exposed-aggregate-concrete", "driveway"),
-    "exposed-aggregate-patio": ("exposed-aggregate-concrete", "patio"),
-    "driveway-replacement": ("concrete-driveway-replacement", "driveway"),
-    "sidewalk": ("concrete-sidewalk", "sidewalk"),
-    "resurfacing": ("concrete-resurfacing", "resurfacing"),
-    "broom-finish-driveway": ("broom-finish-concrete-driveway", "driveway"),
-    "unknown": ("concrete-company", "project"),
+# Smart disambiguation: only add a surface noun when primary is generic
+GENERIC_PRIMARIES = {
+    "decorative-concrete",
+    "concrete-repair",
+    "concrete-resurfacing",
+    "concrete-project",
+    "unknown",
 }
+
+# Allowed surface nouns (single token). Use only if NOT already present in primary.
+SURFACE_NOUNS = {
+    "driveway",
+    "patio",
+    "walkway",
+    "sidewalk",
+    "steps",
+    "wall",
+    "repair",
+    "resurfacing",
+    "stamped",
+    "exposed",
+    "broom",
+    "colored",
+    "stamping",
+    "overlay",
+    "decorative",
+    "slab",
+}
+
+# Surface mapping for generic primaries (populate at runtime from descriptors if available)
+SURFACE_MAP = {
+    # e.g. "decorative-concrete": "steps"
+}
+
+# Semantic keyword expansions per label (no "near me"; use page-level geo)
+SEMANTIC_KEYWORDS = {
+    # Head terms that map well to /services and internal linking
+    "concrete-driveway": [
+        "concrete-driveway",
+        "concrete-driveway-contractors",
+        "driveway-concreters",  # purposefully for SEO ranking
+        "cement-driveway-contractors",
+        "driveway-concrete-companies",
+    ],
+    "driveway-replacement": [
+        "driveway-replacement",
+        "replace-concrete-driveway",
+        "old-driveway-removal-and-replacement",
+    ],
+    "broom-finish-driveway": [
+        "broom-finish-driveway",
+        "brushed-concrete-driveway",
+        "non-slip-concrete-driveway-finish",
+    ],
+    "stamped-concrete-driveway": [
+        "stamped-concrete-driveway",
+        "imprinted-concrete-driveway",
+        "decorative-driveway-concrete",
+    ],
+    "exposed-aggregate-driveway": [
+        "exposed-aggregate-driveway",
+        "aggregate-concrete-driveway",
+        "decorative-stone-driveway",
+    ],
+    "concrete-patio": [
+        "concrete-patio",
+        "patio-concrete-contractors",
+        "concrete-patio-companies",
+    ],
+    "stamped-concrete-patio": [
+        "stamped-concrete-patio",
+        "stamped-concrete-patios",
+        "concrete-stamping-for-patios",
+    ],
+    "exposed-aggregate-patio": [
+        "exposed-aggregate-patio",
+        "aggregate-concrete-patio",
+        "decorative-patio-concrete",
+    ],
+    "fire-pit-surround": [
+        "concrete-fire-pit-surround",
+        "patio-fire-pit-seating",
+        "seat-wall-fire-pit",
+    ],
+    "seat-wall-bench": [
+        "concrete-seat-wall",
+        "concrete-bench-seating",
+        "patio-seating-wall",
+    ],
+    "concrete-walkway": [
+        "concrete-walkway",
+        "concrete-walkway-contractors",
+        "concrete-sidewalk-walkway",
+    ],
+    "stamped-concrete-walkway": [
+        "stamped-concrete-walkway",
+        "decorative-concrete-walkway",
+        "imprinted-walkway-concrete",
+    ],
+    "exposed-aggregate-walkway": [
+        "exposed-aggregate-walkway",
+        "aggregate-concrete-path",
+        "decorative-stone-walkway",
+    ],
+    "sidewalk": [
+        "concrete-sidewalk",
+        "concrete-sidewalk-contractors",
+        "sidewalk-concrete-companies",
+    ],
+    "concrete-steps": [
+        "concrete-steps",
+        "porch-concrete-steps",
+        "front-porch-concrete",
+    ],
+    "retaining-wall": [
+        "retaining-wall-contractor",
+        "concrete-retaining-wall",
+        "retaining-wall-builders",
+        "retaining-wall-repair",
+    ],
+    "concrete-slab": [
+        "concrete-slab",
+        "concrete-garage-slab",
+        "concrete-house-slab",
+        "concrete-basement-slab",
+    ],
+    "concrete-repair": [
+        "concrete-repair",
+        "concrete-crack-repair",
+        "driveway-concrete-repair",
+        "sidewalk-concrete-repair",
+    ],
+    "concrete-resurfacing": [
+        "concrete-resurfacing",
+        "concrete-overlay",
+        "resurfacing-concrete-patio",
+        "resurface-concrete-driveway",
+    ],
+    "decorative-concrete": [
+        "decorative-concrete",
+        "stamped-concrete",
+        "colored-concrete",
+        "concrete-stamping",
+    ],
+    # Broad catch-all for galleries or mixed shoots
+    "concrete-project": [
+        "concrete-contractor-residential",
+        "concrete-companies",
+        "local-concrete-contractors",
+        "concrete-installers",
+        "concrete-company",
+    ],
+    "unknown": [],
+}
+
+# Filename format examples:
+# Specific primary (no surface): stamped-concrete-driveway-bellevue-rc-concrete-01.jpg
+# Generic primary + surface: decorative-concrete-steps-bellevue-rc-concrete-01.jpg
+# Format: {primary-keyword}[-{surface}]-{city}-{brand}-{index}.jpg
 
 
 MESSAGES = [

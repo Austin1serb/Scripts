@@ -53,6 +53,7 @@ python main.py run \
   --hash-threshold 14 \           # Max perceptual hash distance (0-64)
   --site-distance-feet 900 \      # GPS clustering radius in feet
   --rotate-cities \               # Rotate city names if no GPS
+  --semantic-keywords \           # Enable semantic keyword rotation for SEO
   --classify \                    # Enable AI classification
   --batch-size 12 \               # Images per API batch
   --model gpt-4o \                # OpenAI model
@@ -71,9 +72,21 @@ python main.py run \
 | `--site-distance-feet` | `900.0` | GPS clustering radius in feet |
 | `--classify` | `False` | Enable OpenAI classification |
 | `--model` | `o4-mini` | OpenAI vision model |
-| `--batch-size` | `12` | Images per API batch |
+| `--batch-size` | `12` | Images per API batch (reduce if hitting rate limits) |
 | `--rotate-cities` | `True` | Rotate cities if GPS missing |
+| `--semantic-keywords` | `True` | Enable semantic keyword rotation for SEO |
+| `--no-semantic-keywords` | - | Disable semantic keyword rotation (use primary label only) |
 | `--dry-run` | `True` | Process without copying files |
+
+### Rate Limiting Configuration
+
+Configure in `photo_organizer/config.py`:
+
+```python
+API_RATE_LIMIT_DELAY = 1.0  # Seconds between API calls (0 = no delay)
+MAX_RETRIES = 3             # Retry attempts for rate limit errors
+RETRY_DELAY = 5.0           # Initial retry delay (uses exponential backoff)
+```
 
 ## Pipeline Steps
 
@@ -89,16 +102,29 @@ python main.py run \
    - Three strategies: datetime+filename+hash, filename+hash, or hash-only
 
 3. **Classification** (optional):
+   - **🚀 OPTIMIZED**: Classifies only 1 example per cluster (90% cost reduction!)
+   - **Smart Example Selection**: Picks best representative image from each cluster
+     - Prefers: GPS-tagged photos (on-site) + middle by timestamp (best lighting)
+     - Avoids: First image (test shot) and last image (rushed)
+   - Example: 100 images in 10 clusters = 10 API calls instead of 9+ batches
    - Batch classification using OpenAI Vision API
    - Structured output with confidence scores
    - 24 concrete construction type labels (see full list below)
+   - Cluster label automatically applied to all images in that cluster
    - Optional singleton assignment to merge single-photo clusters
 
 4. **Organization**:
-   - Creates folders: `{date}-{surface}-{city}` or `cluster-{id}-{surface}-{city}`
-   - Generates filenames: `{brand}-{primary}-{surface}-{city}-{hash}.{ext}`
+   - Creates folders: `{label}-{city}` (e.g., `stamped-concrete-driveway-bellevue`)
+   - Generates SEO-optimized filenames with **semantic keyword rotation**
+   - Format: `{keyword}[-{surface}]-{city}-{brand}-{index}.jpg`
+   - **Semantic Rotation**: Cycles through related keywords for broad SEO coverage
+     - Image 1: `stamped-concrete-driveway-bellevue-rc-concrete-01.jpg`
+     - Image 2: `imprinted-concrete-driveway-bellevue-rc-concrete-02.jpg`
+     - Image 3: `decorative-driveway-concrete-bellevue-rc-concrete-03.jpg`
+     - Image 4: `stamped-concrete-driveway-bellevue-rc-concrete-04.jpg` (cycles back)
+   - Generic primary example: `decorative-concrete-steps-bellevue-rc-concrete-01.jpg`
    - Copies files to organized structure
-   - Creates manifest.json with complete mapping
+   - Creates manifest.json with complete mapping (includes semantic_keyword tracking)
 
 ## Supported Image Formats
 
@@ -138,6 +164,51 @@ All 24 concrete construction type labels:
 - basement-floor
 - garage-floor
 - unknown
+
+## SEO Strategy: Semantic Keyword Rotation
+
+This tool implements intelligent **semantic keyword rotation** to maximize SEO coverage within each project cluster:
+
+### How It Works
+
+Instead of using the same filename for all images in a cluster, the system **rotates through semantically related keywords** defined in `SEMANTIC_KEYWORDS` (in `config.py`).
+
+**Example**: For a 5-image cluster classified as "stamped-concrete-driveway":
+
+```
+stamped-concrete-driveway-bellevue/
+├── stamped-concrete-driveway-bellevue-rc-concrete-01.jpg      # Primary keyword
+├── imprinted-concrete-driveway-bellevue-rc-concrete-02.jpg    # Semantic variant 1
+├── decorative-driveway-concrete-bellevue-rc-concrete-03.jpg   # Semantic variant 2
+├── stamped-concrete-driveway-bellevue-rc-concrete-04.jpg      # Cycles back to primary
+└── imprinted-concrete-driveway-bellevue-rc-concrete-05.jpg    # Variant 1 again
+```
+
+### SEO Benefits
+
+✅ **Broad keyword coverage** - Targets multiple related search terms per project  
+✅ **Natural variation** - Looks organic, not spammy or keyword-stuffed  
+✅ **Long-tail targeting** - Captures semantic variations users actually search  
+✅ **Internal linking opportunities** - Different pages can link to different variants  
+✅ **Cluster-aware** - All images in a cluster use consistent location/branding  
+
+### Customization
+
+Edit `SEMANTIC_KEYWORDS` in `photo_organizer/config.py` to add your target keywords:
+
+```python
+SEMANTIC_KEYWORDS = {
+    "stamped-concrete-driveway": [
+        "stamped-concrete-driveway",           # Primary (always first)
+        "imprinted-concrete-driveway",         # Variant 1
+        "decorative-driveway-concrete",        # Variant 2
+        "concrete-driveway-stamping",          # Variant 3
+    ],
+    # ... add more labels
+}
+```
+
+The rotation algorithm: `variant_index = (image_index - 1) % len(variants)`
 
 ## Development
 

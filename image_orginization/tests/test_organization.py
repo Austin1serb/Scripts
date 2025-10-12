@@ -151,6 +151,7 @@ def test_organization(max_images: int = 10) -> Dict[str, Any]:
             out_dir=test_output_dir,
             brand="RC Concrete",
             rotate_cities=True,
+            use_semantic_keywords=True,  # Test with semantic keyword rotation
         )
 
         print(f"✅ Organization completed successfully!")

@@ -38,15 +38,13 @@ def meters_between(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return haversine(a[0], a[1], b[0], b[1]) * 1000.0
 
 
-def nearest_city(
-    gps: Optional[Tuple[float, float]], fallback_cycle: List[str], idx: int
-) -> str:
+def nearest_city(gps: Optional[Tuple[float, float]], fallback_cycle, idx: int) -> str:
     """Determine nearest city from GPS coordinates or use fallback.
 
     Args:
         gps: GPS coordinates (lat, lon) or None
-        fallback_cycle: List of city names to cycle through if no GPS
-        idx: Index for cycling through fallback cities
+        fallback_cycle: List of city names to cycle through, or dict of cities
+        idx: Index for cycling through fallback cities (used only with list)
 
     Returns:
         City name
@@ -63,6 +61,13 @@ def nearest_city(
             print(f"Best city from GPS: {best_city}")
             return best_city
 
-    fallback = fallback_cycle[idx % len(fallback_cycle)]
+    # Handle both list (for rotation) and dict (for static fallback)
+    if isinstance(fallback_cycle, dict):
+        # Use first city from dict when not rotating
+        fallback = list(fallback_cycle.keys())[0]
+    else:
+        # Cycle through list
+        fallback = fallback_cycle[idx % len(fallback_cycle)]
+
     print(f"Using fallback city: {fallback}")
     return fallback

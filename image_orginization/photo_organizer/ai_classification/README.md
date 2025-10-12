@@ -1,5 +1,46 @@
 # AI Classification Module
 
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: INGESTION                                           │
+│ Load photos, create thumbnails, extract EXIF                │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: AI CLASSIFICATION (uses build_classification_...)   │
+│                                                             │
+│ API Call #1: "What type of concrete work is this?"          │
+│ ┌─────────────────────────────────────────────────────┐     │
+│ │ Messages: build_classification_messages(MESSAGES)   │     │
+│ │ Input: 12 images                                    │     │
+│ │ Output: [{label: "stamped-concrete-driveway", ...}] │     │
+│ └─────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: CLUSTERING                                          │
+│ Group photos by GPS, time, visual similarity                │
+│ Result: 10 clusters + 5 singleton photos                    │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3.5: SINGLETON ASSIGNMENT (optional, different AI)     │
+│                                                             │
+│ API Call #2: "Which cluster does this singleton match?"     │
+│ ┌─────────────────────────────────────────────────────┐     │
+│ │ Messages: build_singleton_assignment_messages(...)  │     │
+│ │ Input: 5 singletons + sample photos from 10 clusters│     │
+│ │ Output: [{singleton_id: cluster_id}, ...]           │     │
+│ └─────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: ORGANIZATION                                        │
+│ Create folders, rename files with SEO keywords              │
+└─────────────────────────────────────────────────────────────┘
+
+
+
+
 Clean, modular structure for OpenAI Vision API integration.
 
 ## Structure

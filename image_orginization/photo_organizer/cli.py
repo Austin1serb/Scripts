@@ -44,9 +44,14 @@ from .config import (
     DEFAULT_DRY_RUN,
     DEFAULT_AI_CLASSIFY,
     DEFAULT_ASSIGN_SINGLETONS,
+    USE_SEMANTIC_KEYWORDS,
 )
 from .ingestion import ingest
-from .ai_classification import classify_batches, assign_singletons_batched
+from .ai_classification import (
+    classify_batches,
+    classify_cluster_examples,
+    assign_singletons_batched,
+)
 from .clustering import cluster_gps_only, fused_cluster, cluster_phash_only
 from .organization import organize
 from .utils.filename import name_features
@@ -121,6 +126,19 @@ def main():
         dest="rotate_cities",
         default=DEFAULT_ROTATE_CITIES,
         help="Rotate cities if GPS missing",
+    )
+    ap.add_argument(
+        "--semantic-keywords",
+        action="store_true",
+        dest="use_semantic_keywords",
+        default=USE_SEMANTIC_KEYWORDS,
+        help="Enable semantic keyword rotation for SEO (cycles through related terms)",
+    )
+    ap.add_argument(
+        "--no-semantic-keywords",
+        action="store_false",
+        dest="use_semantic_keywords",
+        help="Disable semantic keyword rotation (use only primary label)",
     )
     ap.add_argument(
         "--no-rotate-cities",
@@ -359,7 +377,7 @@ def main():
     with open(work_dir / "clusters.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    # 3) Classification
+    # 3) Classification (OPTIMIZED: classify only cluster examples)
     print("\n" + "=" * 60)
     print("STEP 3: CLASSIFICATION")
     print("=" * 60)
@@ -368,7 +386,15 @@ def main():
         i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""} for i in items
     }
     if args.classify:
-        labels = classify_batches(items, args.batch_size, args.model)
+        # NEW: Classify only cluster examples, propagate to all images
+        labels = classify_cluster_examples(groups, args.batch_size, args.model)
+
+        total_images = sum(len(g) for g in groups)
+        savings_pct = (
+            ((total_images - len(groups)) / total_images * 100) if total_images else 0
+        )
+        print(f"💰 Cost Savings: {savings_pct:.0f}% fewer API requests!")
+
         with open(work_dir / "labels.json", "w", encoding="utf-8") as f:
             json.dump(labels, f, indent=2)
     else:
@@ -380,7 +406,14 @@ def main():
     print("=" * 60)
 
     if not args.dry_run:
-        organize(groups, labels, out_dir, args.brand, args.rotate_cities)
+        organize(
+            groups,
+            labels,
+            out_dir,
+            args.brand,
+            args.rotate_cities,
+            args.use_semantic_keywords,
+        )
     else:
         print("Dry run complete. See _work folder for JSON outputs.")
 
