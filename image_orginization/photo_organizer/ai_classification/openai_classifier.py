@@ -29,6 +29,7 @@ from .schemas import get_classification_schema, get_singleton_assignment_schema
 from .messages import (
     build_classification_messages,
     build_singleton_assignment_messages,
+    build_singleton_assignment_messages_with_labels,
     add_cluster_label_message,
 )
 
@@ -193,6 +194,29 @@ def classify_batches(
     return out
 
 
+def classify_singleton(item: Item, model: str = DEFAULT_MODEL) -> Dict:
+    """Classify a single image using OpenAI Vision API.
+
+    Used for cascading classification: classify singletons first, then
+    filter clusters by matching labels for assignment.
+
+    Args:
+        item: Single Item to classify
+        model: OpenAI model to use (e.g., 'gpt-4o')
+
+    Returns:
+        Classification result: {"label": str, "confidence": float, "descriptor": str}
+    """
+    if OpenAI is None:
+        return {"label": "unknown", "confidence": 0.0, "descriptor": ""}
+
+    # Use classify_batches with batch_size=1
+    result = classify_batches([item], batch_size=1, model=model)
+    return result.get(
+        item.id, {"label": "unknown", "confidence": 0.0, "descriptor": ""}
+    )
+
+
 def get_best_example(group: List[Item]) -> Item:
     """Select the best representative image from a cluster.
 
@@ -306,6 +330,7 @@ def assign_singletons_batched(
     singleton_items: List[Item],
     multi_photo_clusters: List[List[Item]],
     model: str = DEFAULT_MODEL,
+    cluster_labels: Dict[str, Dict] = None,
 ) -> Dict[str, int]:
     """Match singleton photos to existing clusters using AI vision (BATCHED).
 
@@ -313,10 +338,15 @@ def assign_singletons_batched(
     AI determines which cluster (if any) it belongs to based on visual similarity,
     materials, construction context, and lighting.
 
+    NEW (Cascading Classification): If cluster_labels are provided, uses label-guided
+    matching to filter clusters by semantic similarity, allowing unlimited clusters.
+
     Args:
         singleton_items: List of single-photo items to assign
         multi_photo_clusters: List of clusters (each cluster is a list of Items)
         model: OpenAI model to use (e.g., 'gpt-4o')
+        cluster_labels: Optional dict mapping cluster example IDs to labels
+                       (enables cascading classification with label filtering)
 
     Returns:
         Dictionary mapping singleton item IDs to cluster indices:
@@ -343,14 +373,24 @@ def assign_singletons_batched(
     client = OpenAI()
     assignments: Dict[str, int] = {}
 
+    # Determine if we're using cascading classification with labels
+    use_labels = cluster_labels is not None
+
     # Prepare cluster samples (first N photos from each cluster)
     cluster_samples = []
     for idx, cluster in enumerate(multi_photo_clusters):
         if len(cluster) > 1:  # Only include multi-photo clusters
+            example_id = cluster[0].id
+            label = (
+                cluster_labels.get(example_id, {}).get("label", "unknown")
+                if use_labels
+                else None
+            )
             cluster_samples.append(
                 {
                     "cluster_id": idx,
                     "samples": cluster[:CLUSTER_SAMPLES_PER_CLUSTER],
+                    "label": label,  # Include label for cascading
                 }
             )
 
@@ -358,49 +398,124 @@ def assign_singletons_batched(
         print("[warn] No multi-photo clusters available for singleton assignment")
         return {item.id: -1 for item in singleton_items}
 
-    # Limit clusters per API call to avoid token limits
-    clusters_to_show = cluster_samples[:MAX_CLUSTERS_PER_CALL]
-
     # Get JSON schema for structured output
     schema = get_singleton_assignment_schema()
 
     def do_batch(batch: List[Item]):
         """Process a batch of singletons."""
-        # Build initial messages
-        messages = build_singleton_assignment_messages(
-            len(batch), len(clusters_to_show)
-        )
+        # CASCADING CLASSIFICATION: If labels provided, filter clusters per singleton
+        if use_labels:
+            # Classify each singleton first to get its label
+            print("  🔍 Classifying singletons for label-guided matching...")
+            singleton_labels = {}
+            for singleton in batch:
+                label_result = classify_singleton(singleton, model)
+                singleton_labels[singleton.id] = label_result["label"]
 
-        # Add singleton photos
-        for singleton in batch:
-            messages.append(
-                create_singleton_image_message(singleton.id, singleton.thumb)
+            # For each singleton, filter clusters by matching label
+            for singleton in batch:
+                singleton_label = singleton_labels[singleton.id]
+
+                # Filter clusters: prioritize matching labels, include top N as fallback
+                matching_clusters = [
+                    c for c in cluster_samples if c["label"] == singleton_label
+                ]
+
+                # If no matches, use all clusters (singleton might be unique)
+                # Otherwise, limit to matching + top 5 largest clusters
+                if matching_clusters:
+                    # Use matching clusters + top 5 largest (for context)
+                    largest_clusters = sorted(
+                        cluster_samples, key=lambda c: len(c["samples"]), reverse=True
+                    )[:5]
+                    clusters_to_show = matching_clusters + [
+                        c for c in largest_clusters if c not in matching_clusters
+                    ]
+                    clusters_to_show = clusters_to_show[:MAX_CLUSTERS_PER_CALL]
+                else:
+                    # No label match, show largest clusters
+                    clusters_to_show = sorted(
+                        cluster_samples, key=lambda c: len(c["samples"]), reverse=True
+                    )[:MAX_CLUSTERS_PER_CALL]
+
+                # Build messages with label context
+                messages = build_singleton_assignment_messages_with_labels(
+                    1, len(clusters_to_show)
+                )
+
+                # Add singleton photo
+                messages.append(
+                    create_singleton_image_message(singleton.id, singleton.thumb)
+                )
+
+                # Add cluster samples with labels
+                for cluster_info in clusters_to_show:
+                    cluster_id = cluster_info["cluster_id"]
+                    samples = cluster_info["samples"]
+                    label = cluster_info["label"]
+
+                    # Add text label for cluster (with label name)
+                    add_cluster_label_message(messages, cluster_id, label, len(samples))
+
+                    # Add sample images from this cluster
+                    for sample_item in samples:
+                        messages.append(
+                            create_cluster_sample_message(sample_item.thumb)
+                        )
+
+                # Call API for this single singleton
+                resp = call_openai_with_retry(
+                    client=client, model=model, messages=messages, schema=schema
+                )
+
+                # Parse response
+                data = parse_json_response(resp.choices[0].message.content)
+                for assignment in data.get("assignments", []):
+                    singleton_id = assignment["singleton_id"]
+                    cluster_id = assignment["cluster_id"]
+                    assignments[singleton_id] = cluster_id
+
+        else:
+            # ORIGINAL LOGIC: No labels, batch process singletons
+            clusters_to_show = cluster_samples[:MAX_CLUSTERS_PER_CALL]
+
+            # Build initial messages
+            messages = build_singleton_assignment_messages(
+                len(batch), len(clusters_to_show)
             )
 
-        # Add cluster sample photos
-        for cluster_info in clusters_to_show:
-            cluster_id = cluster_info["cluster_id"]
-            samples = cluster_info["samples"]
+            # Add singleton photos
+            for singleton in batch:
+                messages.append(
+                    create_singleton_image_message(singleton.id, singleton.thumb)
+                )
 
-            # Add text label for cluster
-            add_cluster_label_message(messages, cluster_id, len(samples))
+            # Add cluster sample photos
+            for cluster_info in clusters_to_show:
+                cluster_id = cluster_info["cluster_id"]
+                samples = cluster_info["samples"]
 
-            # Add sample images from this cluster
-            for sample_item in samples:
-                messages.append(create_cluster_sample_message(sample_item.thumb))
+                # Add text label for cluster (no label name)
+                add_cluster_label_message(
+                    messages, cluster_id, "unlabeled", len(samples)
+                )
 
-        # Call OpenAI API with retry logic
-        resp = call_openai_with_retry(
-            client=client, model=model, messages=messages, schema=schema
-        )
+                # Add sample images from this cluster
+                for sample_item in samples:
+                    messages.append(create_cluster_sample_message(sample_item.thumb))
 
-        # Parse response
-        data = parse_json_response(resp.choices[0].message.content)
-        print("raw_response: ", data)
-        for assignment in data.get("assignments", []):
-            singleton_id = assignment["singleton_id"]
-            cluster_id = assignment["cluster_id"]
-            assignments[singleton_id] = cluster_id
+            # Call OpenAI API with retry logic
+            resp = call_openai_with_retry(
+                client=client, model=model, messages=messages, schema=schema
+            )
+
+            # Parse response
+            data = parse_json_response(resp.choices[0].message.content)
+            print("raw_response: ", data)
+            for assignment in data.get("assignments", []):
+                singleton_id = assignment["singleton_id"]
+                cluster_id = assignment["cluster_id"]
+                assignments[singleton_id] = cluster_id
 
     # Process singletons in batches with rate limiting
     print(

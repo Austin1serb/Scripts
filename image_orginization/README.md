@@ -42,6 +42,24 @@ python main.py run \
   --model gpt-4o
 ```
 
+### With Cascading Classification (Recommended)
+
+```bash
+python main.py run \
+  --input "/path/to/photos" \
+  --output "/path/to/organized" \
+  --brand "bespoke-concrete" \
+  --classify \
+  --assign-singletons \  # Enable label-guided singleton matching
+  --batch-size 12 \
+  --model gpt-4o
+```
+
+**Benefits of cascading classification:**
+- Matches singletons against unlimited clusters (not limited to 10)
+- Uses label semantics + visual similarity for better accuracy
+- High-confidence clusters inform singleton assignment
+
 ### Advanced Options
 
 ```bash
@@ -71,6 +89,7 @@ python main.py run \
 | `--hash-threshold` | `14` | Max pHash distance for same cluster (0-64 scale) |
 | `--site-distance-feet` | `900.0` | GPS clustering radius in feet |
 | `--classify` | `False` | Enable OpenAI classification |
+| `--assign-singletons` | `False` | Enable cascading classification with label-guided singleton matching |
 | `--model` | `o4-mini` | OpenAI vision model |
 | `--batch-size` | `12` | Images per API batch (reduce if hitting rate limits) |
 | `--rotate-cities` | `True` | Rotate cities if GPS missing |
@@ -106,12 +125,18 @@ RETRY_DELAY = 5.0           # Initial retry delay (uses exponential backoff)
    - **Smart Example Selection**: Picks best representative image from each cluster
      - Prefers: GPS-tagged photos (on-site) + middle by timestamp (best lighting)
      - Avoids: First image (test shot) and last image (rushed)
+   - **🔄 Cascading Classification** (NEW with `--assign-singletons`):
+     - Phase 1: Classifies high-confidence clusters first (GPS, time+filename)
+     - Phase 2: Classifies singleton images to get their labels
+     - Phase 3: Filters clusters by matching labels for unlimited cluster comparison
+     - Phase 4: Assigns singletons to matching clusters using label-guided AI
+     - Phase 5: Classifies remaining low-confidence clusters and unmatched singletons
+     - **Benefit**: Can match singletons against ANY cluster (not limited to first 10!)
    - Example: 100 images in 10 clusters = 10 API calls instead of 9+ batches
    - Batch classification using OpenAI Vision API
    - Structured output with confidence scores
    - 24 concrete construction type labels (see full list below)
    - Cluster label automatically applied to all images in that cluster
-   - Optional singleton assignment to merge single-photo clusters
 
 4. **Organization**:
    - Creates organized photos in: `{output}/organized_photos/`

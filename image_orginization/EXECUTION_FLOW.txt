@@ -130,6 +130,11 @@ C. Test Mode: pHash-Only Clustering
 STEP 3: CLASSIFICATION (Optional)
 Identify surface types using OpenAI Vision API - OPTIMIZED for 90% cost reduction
 
+TWO MODES: Basic Classification vs Cascading Classification
+
+================================================================================
+MODE 1: BASIC CLASSIFICATION (Default with --classify)
+
 Function: classify_cluster_examples(groups, batch_size, model) - ai_classification/openai_classifier.py
 
 OPTIMIZATION: Classify only cluster examples (1 per cluster), then propagate labels
@@ -166,6 +171,64 @@ Process:
      }
 3. Propagate each example's label to all images in that cluster
 4. Return complete labels dict for all images
+
+================================================================================
+MODE 2: CASCADING CLASSIFICATION (With --classify AND --assign-singletons)
+
+Main Location: cli.py (Step 3: Classification section, lines 332-460)
+
+PURPOSE: Label-guided singleton matching for unlimited cluster comparison
+- Solves MAX_CLUSTERS_PER_CALL=10 limitation
+- Uses high-confidence labels to filter cluster matches
+- Result: Singletons can match ANY cluster (not just first 10)
+
+5-PHASE CASCADING PROCESS:
+
+Phase 1: Separate Clusters by Confidence
+- Analyzes cluster metadata (GPS, datetime, filename patterns)
+- HIGH CONFIDENCE: gps_location, time+filename+hash
+- LOW CONFIDENCE: filename+hash, hash_only
+- SINGLETONS: len(cluster) == 1
+- Example split: 60 high + 15 low + 25 singletons
+
+Phase 2: Classify High-Confidence Clusters FIRST
+- classify_cluster_examples(high_conf_clusters)
+- Establishes "ground truth" labels
+- Example: 60 clusters → 60 API calls → stored in high_conf_labels
+
+Phase 3: Classify Each Singleton
+- classify_singleton(singleton, model) - NEW function
+- Gets label for filtering (e.g., "stamped-concrete-driveway")
+- Example: 25 singletons → 25 API calls
+
+Phase 4: Label-Guided Singleton Assignment
+- For each singleton:
+  1. Filter clusters: matching_clusters = [c for c if label == singleton_label]
+  2. Show only matching clusters + top 5 largest (context)
+  3. AI compares singleton against filtered subset
+  4. Result: Can match against 60 clusters (not limited to 10!)
+  
+- assign_singletons_batched(singletons, high_conf, model, cluster_labels)
+  - NEW parameter: cluster_labels (enables cascading)
+  - Calls build_singleton_assignment_messages_with_labels()
+  - Adds label context: add_cluster_label_message(id, label, num_samples)
+  
+- Merges matched singletons into clusters
+- Example: 25 singletons → 18 matched, 7 remain
+
+Phase 5: Classify Remaining
+- Low-confidence clusters + unmatched singletons
+- classify_cluster_examples(remaining)
+- Example: 15 + 7 = 22 API calls
+
+TOTAL COST COMPARISON:
+  Basic: 100 clusters = 100 API calls
+  Cascading: 60 + 25 + 25 (matching) + 22 = 132 API calls
+  
+Trade-off: 32% more calls, but MUCH better singleton matching accuracy
+- Singletons can match unlimited clusters (not capped at 10)
+- Uses semantic label filtering + visual similarity
+- Reduces false assignments (driveway won't match patio)
 
 Available labels (24 concrete construction types):
 - stamped concrete patio, stamped concrete driveway, stamped concrete walkway

@@ -48,7 +48,6 @@ from .config import (
 )
 from .ingestion import ingest
 from .ai_classification import (
-    classify_batches,
     classify_cluster_examples,
     assign_singletons_batched,
 )
@@ -273,59 +272,150 @@ def main():
     # Combine
     groups = gps_groups + th_groups
 
-    # 2b) AI Singleton Assignment (OPTIONAL)
-    if args.assign_singletons:
-        print("\n" + "=" * 60)
-        print("STEP 2b: AI SINGLETON ASSIGNMENT")
-        print("=" * 60)
+    # NOTE: Singleton assignment moved to after classification (cascading flow)
+    # Cluster summary will be written after classification when groups are finalized
 
-        # Separate singletons from multi-photo clusters
-        multi_photo_clusters = [g for g in groups if len(g) > 1]
-        singleton_clusters = [g for g in groups if len(g) == 1]
+    # 3) Classification (OPTIMIZED: classify only cluster examples)
+    print("\n" + "=" * 60)
+    print("STEP 3: CLASSIFICATION (Cascading)")
+    print("=" * 60)
 
-        if singleton_clusters and multi_photo_clusters:
-            print(
-                f"Found {len(singleton_clusters)} singleton clusters and "
-                f"{len(multi_photo_clusters)} multi-photo clusters"
+    labels: Dict[str, Dict] = {
+        i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""} for i in items
+    }
+
+    if args.classify:
+        from .config import ENABLE_CASCADING_CLASSIFICATION, HIGH_CONFIDENCE_STRATEGIES
+
+        if args.assign_singletons and ENABLE_CASCADING_CLASSIFICATION:
+            # CASCADING CLASSIFICATION: 3-phase approach
+            print("🔄 Using cascading classification (label-guided singleton matching)")
+
+            # Phase 1: Separate high-confidence clusters, low-confidence, and singletons
+            print("\n📊 Phase 1: Separating clusters by confidence...")
+            high_conf_clusters = []
+            low_conf_clusters = []
+            singleton_clusters = []
+
+            for g in groups:
+                if len(g) == 1:
+                    singleton_clusters.append(g)
+                else:
+                    # Determine cluster strategy from metadata
+                    has_gps = any(item.gps for item in g)
+                    has_datetime_count = sum(1 for item in g if item.dt is not None)
+
+                    if has_gps:
+                        strategy = "gps_location"
+                    elif has_datetime_count >= len(g) / 2:
+                        strategy = "time+filename+hash"
+                    else:
+                        strategy = "hash_only"
+
+                    if strategy in HIGH_CONFIDENCE_STRATEGIES:
+                        high_conf_clusters.append(g)
+                    else:
+                        low_conf_clusters.append(g)
+
+            print(f"  ✅ High-confidence clusters: {len(high_conf_clusters)}")
+            print(f"  ⚠️  Low-confidence clusters: {len(low_conf_clusters)}")
+            print(f"  🔍 Singletons: {len(singleton_clusters)}")
+
+            # Phase 2: Classify high-confidence clusters FIRST
+            print("\n🎯 Phase 2: Classifying high-confidence clusters...")
+            high_conf_labels = {}
+            if high_conf_clusters:
+                high_conf_labels = classify_cluster_examples(
+                    high_conf_clusters, args.batch_size, args.model
+                )
+                labels.update(high_conf_labels)
+
+            # Phase 3: Assign singletons using label-guided matching
+            print("\n🔗 Phase 3: Label-guided singleton assignment...")
+            if singleton_clusters and high_conf_clusters:
+                singleton_items = [g[0] for g in singleton_clusters]
+
+                print(
+                    f"  Matching {len(singleton_items)} singletons against "
+                    f"{len(high_conf_clusters)} labeled clusters..."
+                )
+
+                # Call assign_singletons_batched WITH cluster labels
+                assignments = assign_singletons_batched(
+                    singleton_items,
+                    high_conf_clusters,
+                    model=args.model,
+                    cluster_labels=high_conf_labels,  # NEW: Pass labels for filtering
+                )
+
+                # Merge assigned singletons into their matched clusters
+                matched_count = 0
+                for singleton_id, cluster_idx in assignments.items():
+                    if cluster_idx != -1 and 0 <= cluster_idx < len(high_conf_clusters):
+                        singleton_item = next(
+                            (
+                                item
+                                for item in singleton_items
+                                if item.id == singleton_id
+                            ),
+                            None,
+                        )
+                        if singleton_item:
+                            high_conf_clusters[cluster_idx].append(singleton_item)
+                            matched_count += 1
+
+                # Rebuild groups: high-conf + low-conf + remaining singletons
+                remaining_singletons = [
+                    [item]
+                    for item in singleton_items
+                    if assignments.get(item.id, -1) == -1
+                ]
+                groups = high_conf_clusters + low_conf_clusters + remaining_singletons
+
+                print(
+                    f"  ✅ Merged {matched_count} singletons, "
+                    f"{len(remaining_singletons)} singletons remain"
+                )
+            else:
+                groups = high_conf_clusters + low_conf_clusters + singleton_clusters
+
+            # Phase 4: Classify remaining low-confidence clusters + singletons
+            print("\n🔍 Phase 4: Classifying remaining clusters...")
+            remaining_groups = low_conf_clusters + [g for g in groups if len(g) == 1]
+            if remaining_groups:
+                remaining_labels = classify_cluster_examples(
+                    remaining_groups, args.batch_size, args.model
+                )
+                labels.update(remaining_labels)
+
+            total_images = sum(len(g) for g in groups)
+            savings_pct = (
+                ((total_images - len(groups)) / total_images * 100)
+                if total_images
+                else 0
             )
+            print(f"\n💰 Total Cost Savings: {savings_pct:.0f}% fewer API requests!")
 
-            # Get singleton items (flatten singleton clusters)
-            singleton_items = [g[0] for g in singleton_clusters]
-
-            # Call AI to assign singletons to clusters
-            assignments = assign_singletons_batched(
-                singleton_items, multi_photo_clusters, model=args.model
-            )
-
-            # Merge assigned singletons into their matched clusters
-            matched_count = 0
-            for singleton_id, cluster_idx in assignments.items():
-                if cluster_idx != -1 and 0 <= cluster_idx < len(multi_photo_clusters):
-                    # Find the singleton item
-                    singleton_item = next(
-                        (item for item in singleton_items if item.id == singleton_id),
-                        None,
-                    )
-                    if singleton_item:
-                        # Add to the matched cluster
-                        multi_photo_clusters[cluster_idx].append(singleton_item)
-                        matched_count += 1
-
-            # Rebuild groups: multi-photo clusters + remaining singletons
-            remaining_singletons = [
-                [item] for item in singleton_items if assignments.get(item.id, -1) == -1
-            ]
-            groups = multi_photo_clusters + remaining_singletons
-
-            print(
-                f"✅ Merged {matched_count} singletons into existing clusters, "
-                f"{len(remaining_singletons)} singletons remain"
-            )
         else:
-            print("No singletons or multi-photo clusters available for assignment")
+            # ORIGINAL FLOW: No cascading, classify all clusters
+            labels = classify_cluster_examples(groups, args.batch_size, args.model)
+
+            total_images = sum(len(g) for g in groups)
+            savings_pct = (
+                ((total_images - len(groups)) / total_images * 100)
+                if total_images
+                else 0
+            )
+            print(f"💰 Cost Savings: {savings_pct:.0f}% fewer API requests!")
+
+        with open(work_dir / "labels.json", "w", encoding="utf-8") as f:
+            json.dump(labels, f, indent=2)
+    else:
+        print("Classification disabled, using 'unknown' labels.")
 
     # Write cluster summary with full file lists and thumbnail paths
-    # Use final `groups` after singleton assignment (if enabled)
+    # AFTER classification, when groups are finalized
+    print("\n📝 Writing final cluster summary...")
     summary = []
     cluster_num = 1
     final_gps_count = 0
@@ -378,29 +468,6 @@ def main():
         cluster_num += 1
     with open(work_dir / "clusters.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-
-    # 3) Classification (OPTIMIZED: classify only cluster examples)
-    print("\n" + "=" * 60)
-    print("STEP 3: CLASSIFICATION")
-    print("=" * 60)
-
-    labels: Dict[str, Dict] = {
-        i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""} for i in items
-    }
-    if args.classify:
-        # NEW: Classify only cluster examples, propagate to all images
-        labels = classify_cluster_examples(groups, args.batch_size, args.model)
-
-        total_images = sum(len(g) for g in groups)
-        savings_pct = (
-            ((total_images - len(groups)) / total_images * 100) if total_images else 0
-        )
-        print(f"💰 Cost Savings: {savings_pct:.0f}% fewer API requests!")
-
-        with open(work_dir / "labels.json", "w", encoding="utf-8") as f:
-            json.dump(labels, f, indent=2)
-    else:
-        print("Classification disabled, using 'unknown' labels.")
 
     # 4) Organization
     print("\n" + "=" * 60)

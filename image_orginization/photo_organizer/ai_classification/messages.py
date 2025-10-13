@@ -51,17 +51,54 @@ def build_singleton_assignment_messages(
     ]
 
 
-def add_cluster_label_message(messages: List[Dict], cluster_id: int, num_samples: int):
-    """Add cluster label message to messages list.
+def build_singleton_assignment_messages_with_labels(
+    num_singletons: int, num_clusters: int
+) -> List[Dict]:
+    """Build messages for singleton assignment with label context (cascading).
+
+    Args:
+        num_singletons: Number of singleton photos in this batch
+        num_clusters: Number of clusters to compare against
+
+    Returns:
+        List of initial messages for singleton assignment with label guidance
+    """
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are an expert at matching construction photos to labeled project clusters. "
+                "Each cluster has already been classified with a specific label (e.g., 'stamped-concrete-driveway'). "
+                "For each singleton photo, determine which labeled cluster (if any) it belongs to. "
+                "Consider: visual similarity, materials, construction type, label semantics, and context. "
+                "Return cluster_id=-1 if no good match exists."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"I have {num_singletons} singleton photos and {num_clusters} labeled clusters. "
+                f"For each singleton, return the cluster_id it belongs to (or -1 for no match). "
+                f"Use both visual matching AND label semantics to make accurate assignments."
+            ),
+        },
+    ]
+
+
+def add_cluster_label_message(
+    messages: List[Dict], cluster_id: int, label: str, num_samples: int
+):
+    """Add cluster label message to messages list (with label).
 
     Args:
         messages: Messages list to append to
         cluster_id: ID of the cluster
+        label: Classification label for this cluster (e.g., "stamped-concrete-driveway")
         num_samples: Number of sample photos in this cluster
     """
     messages.append(
         {
             "role": "user",
-            "content": f"CLUSTER {cluster_id} ({num_samples} sample photos):",
+            "content": f"CLUSTER {cluster_id}: {label} ({num_samples} sample photos):",
         }
     )

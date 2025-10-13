@@ -21,11 +21,13 @@ USE_SEMANTIC_KEYWORDS = True  # Enable semantic keyword rotation for filenames
 # =============================================================================
 # CLUSTERING
 # =============================================================================
-DEFAULT_SITE_DISTANCE_FEET = 900.0  # GPS Clustering
-DEFAULT_TIME_GAP_MINUTES = 60  # Max time gap photo in same cluster
+DEFAULT_SITE_DISTANCE_FEET = 900.0  # GPS Clustering (in feet)
+DEFAULT_TIME_GAP_MINUTES = 180  # Max time gap photo in same cluster
 
 # sweet spot 14-16
-DEFAULT_HASH_THRESHOLD = 14  # Max perceptual hash distance (0-64)
+DEFAULT_HASH_THRESHOLD = (
+    14  # Max perceptual hash distance (0-64) (used for fused clustering)
+)
 DEFAULT_FUSE_THRESHOLD = 0.5  # Min similarity score (0.0-1.0)
 DEFAULT_MAX_EDGES = 32  # Max connections per photo
 
@@ -46,6 +48,19 @@ MAX_SINGLETONS_TO_ASSIGN = 20  # Max singletons to process
 SINGLETON_BATCH_SIZE = 5  # Process N singletons per API call
 CLUSTER_SAMPLES_PER_CLUSTER = 2  # Show AI N sample images from each cluster
 MAX_CLUSTERS_PER_CALL = 10  # Max clusters to compare against per API call
+
+# ? Cascading Classification (NEW)
+# Classify high-confidence clusters first, then use their labels to filter
+# singleton matching against unlimited clusters (not just first 10)
+ENABLE_CASCADING_CLASSIFICATION = True  # Use label-guided singleton assignment
+HIGH_CONFIDENCE_STRATEGIES = [
+    "gps_location",  # GPS-based clusters (most reliable)
+    "time+filename+hash",  # Strong temporal + filename + visual match
+]
+LOW_CONFIDENCE_STRATEGIES = [
+    "filename+hash",  # Filename + visual only (medium confidence)
+    "hash_only",  # Visual similarity only (lowest confidence)
+]
 
 
 # =============================================================================
