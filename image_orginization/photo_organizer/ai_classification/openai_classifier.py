@@ -363,7 +363,8 @@ def match_uncertain_items_with_collage(
     from ..config import API_RATE_LIMIT_DELAY
     from .collage import create_cluster_collage
     from .schemas import get_uncertain_match_schema
-    from .utils import Spinner, b64
+    from .utils import b64
+    from ..utils.loading_spinner import Spinner
 
     if not uncertain_items:
         print("No uncertain items to match.")
