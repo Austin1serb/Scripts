@@ -5,6 +5,8 @@ from .openai_classifier import (
     classify_cluster_examples,
     classify_singleton,
     assign_singletons_batched,
+    classify_clusters_with_collage,
+    assign_singletons_with_collage,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "classify_cluster_examples",
     "classify_singleton",
     "assign_singletons_batched",
+    "classify_clusters_with_collage",
+    "assign_singletons_with_collage",
 ]

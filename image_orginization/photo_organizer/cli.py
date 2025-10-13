@@ -49,7 +49,9 @@ from .config import (
 from .ingestion import ingest
 from .ai_classification import (
     classify_cluster_examples,
+    classify_clusters_with_collage,
     assign_singletons_batched,
+    assign_singletons_with_collage,
 )
 from .clustering import cluster_gps_only, fused_cluster, cluster_phash_only
 from .organization import organize
@@ -285,7 +287,12 @@ def main():
     }
 
     if args.classify:
-        from .config import ENABLE_CASCADING_CLASSIFICATION, HIGH_CONFIDENCE_STRATEGIES
+        from .config import (
+            ENABLE_CASCADING_CLASSIFICATION,
+            ENABLE_COLLAGE_CLASSIFICATION,
+            HIGH_CONFIDENCE_STRATEGIES,
+            COLLAGE_CLUSTERS_PER_IMAGE,
+        )
 
         if args.assign_singletons and ENABLE_CASCADING_CLASSIFICATION:
             # CASCADING CLASSIFICATION: 3-phase approach
@@ -325,9 +332,19 @@ def main():
             print("\n🎯 Phase 2: Classifying high-confidence clusters...")
             high_conf_labels = {}
             if high_conf_clusters:
-                high_conf_labels = classify_cluster_examples(
-                    high_conf_clusters, args.batch_size, args.model
-                )
+                if ENABLE_COLLAGE_CLASSIFICATION:
+                    print(
+                        f"  🖼️  Using collage mode ({COLLAGE_CLUSTERS_PER_IMAGE} clusters per image)"
+                    )
+                    high_conf_labels = classify_clusters_with_collage(
+                        high_conf_clusters,
+                        collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
+                        model=args.model,
+                    )
+                else:
+                    high_conf_labels = classify_cluster_examples(
+                        high_conf_clusters, args.batch_size, args.model
+                    )
                 labels.update(high_conf_labels)
 
             # Phase 3: Assign singletons using label-guided matching
@@ -340,13 +357,25 @@ def main():
                     f"{len(high_conf_clusters)} labeled clusters..."
                 )
 
-                # Call assign_singletons_batched WITH cluster labels
-                assignments = assign_singletons_batched(
-                    singleton_items,
-                    high_conf_clusters,
-                    model=args.model,
-                    cluster_labels=high_conf_labels,  # NEW: Pass labels for filtering
-                )
+                # Call assignment function (collage or cascading)
+                if ENABLE_COLLAGE_CLASSIFICATION:
+                    print(
+                        f"  🖼️  Using collage mode (all {len(high_conf_clusters)} clusters in one image)"
+                    )
+                    assignments = assign_singletons_with_collage(
+                        singleton_items,
+                        high_conf_clusters,
+                        cluster_labels=high_conf_labels,
+                        model=args.model,
+                        max_clusters_per_collage=COLLAGE_CLUSTERS_PER_IMAGE,
+                    )
+                else:
+                    assignments = assign_singletons_batched(
+                        singleton_items,
+                        high_conf_clusters,
+                        model=args.model,
+                        cluster_labels=high_conf_labels,
+                    )
 
                 # Merge assigned singletons into their matched clusters
                 matched_count = 0
@@ -383,9 +412,19 @@ def main():
             print("\n🔍 Phase 4: Classifying remaining clusters...")
             remaining_groups = low_conf_clusters + [g for g in groups if len(g) == 1]
             if remaining_groups:
-                remaining_labels = classify_cluster_examples(
-                    remaining_groups, args.batch_size, args.model
-                )
+                if ENABLE_COLLAGE_CLASSIFICATION:
+                    print(
+                        f"  🖼️  Using collage mode for {len(remaining_groups)} remaining clusters"
+                    )
+                    remaining_labels = classify_clusters_with_collage(
+                        remaining_groups,
+                        collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
+                        model=args.model,
+                    )
+                else:
+                    remaining_labels = classify_cluster_examples(
+                        remaining_groups, args.batch_size, args.model
+                    )
                 labels.update(remaining_labels)
 
             total_images = sum(len(g) for g in groups)
@@ -398,7 +437,17 @@ def main():
 
         else:
             # ORIGINAL FLOW: No cascading, classify all clusters
-            labels = classify_cluster_examples(groups, args.batch_size, args.model)
+            if ENABLE_COLLAGE_CLASSIFICATION:
+                print(
+                    f"🖼️  Using collage mode ({COLLAGE_CLUSTERS_PER_IMAGE} clusters per image)"
+                )
+                labels = classify_clusters_with_collage(
+                    groups,
+                    collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
+                    model=args.model,
+                )
+            else:
+                labels = classify_cluster_examples(groups, args.batch_size, args.model)
 
             total_images = sum(len(g) for g in groups)
             savings_pct = (

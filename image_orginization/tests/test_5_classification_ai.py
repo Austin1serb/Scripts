@@ -24,14 +24,35 @@ output_file = test_output_dir / "5_ai_classification_output.json"
 with open(clusters_file, "r") as f:
     clusters_data = json.load(f)
 
-# Limit to first 5 clusters for testing
-clusters_data = clusters_data[:5]
+# Limit to first N clusters for testing (adjust as needed)
+# Use 20-30 clusters to demonstrate collage savings without excessive API costs
+#
+# Examples:
+#   TEST_CLUSTER_COUNT = 5   → Quick test (~$0.25)
+#   TEST_CLUSTER_COUNT = 20  → Better demo (~$1.00)
+#   TEST_CLUSTER_COUNT = 50  → Full collage test (~$2.50)
+#   TEST_CLUSTER_COUNT = None → ALL clusters (expensive!)
+#
+TEST_CLUSTER_COUNT = 20  # Change this to test with more/fewer clusters
+
+if TEST_CLUSTER_COUNT is not None:
+    clusters_data = clusters_data[:TEST_CLUSTER_COUNT]
+
+total_images = sum(c["count"] for c in clusters_data)
+num_clusters = len(clusters_data)
 
 print("=" * 70)
 print("AI CLASSIFICATION TEST")
 print("=" * 70)
-print(f"Clusters to classify: {len(clusters_data)}")
-print(f"Total images: {sum(c['count'] for c in clusters_data)}")
+print(f"Clusters to classify: {num_clusters}")
+print(f"Total images: {total_images}")
+print()
+print("API Call Comparison:")
+print(f"  OLD (classify every image): {total_images} API calls")
+print(f"  NEW (classify cluster examples): {num_clusters} API calls")
+print(
+    f"  💰 SAVINGS: {((total_images - num_clusters) / total_images * 100):.0f}% reduction!"
+)
 print()
 
 # Convert cluster data to Item objects
@@ -118,7 +139,57 @@ with open(output_file, "w") as f:
 
 print()
 print("=" * 70)
+print("COST SAVINGS SUMMARY")
+print("=" * 70)
+print(f"Total images in test: {total_images}")
+print(f"Total clusters in test: {num_clusters}")
+
+# Calculate collage API calls
+collage_calls = (num_clusters + 49) // 50
+
+print()
+print("Method Comparison (this test):")
+print(f"  1. Individual images:     {total_images} API calls")
+print(f"  2. Cluster examples:      {num_clusters} API calls (this test used)")
+print(
+    f"  3. Collage mode (50/img): {collage_calls} API call{'s' if collage_calls != 1 else ''}"
+)
+print()
+print(f"Savings vs individual:")
+print(
+    f"  Cluster examples: {((total_images - num_clusters) / total_images * 100):.0f}% reduction"
+)
+if collage_calls < total_images:
+    print(
+        f"  Collage mode:     {((total_images - collage_calls) / total_images * 100):.0f}% reduction"
+    )
+
+# Show full dataset projection
+with open(clusters_file, "r") as f:
+    all_clusters = json.load(f)
+total_all_images = sum(c["count"] for c in all_clusters)
+total_all_clusters = len(all_clusters)
+all_collage_calls = (total_all_clusters + 49) // 50
+
+print()
+print(
+    f"Full Dataset Projection ({total_all_clusters} clusters, {total_all_images} images):"
+)
+print(
+    f"  Individual images:     {total_all_images} API calls (~${total_all_images * 0.05:.2f})"
+)
+print(
+    f"  Cluster examples:      {total_all_clusters} API calls (~${total_all_clusters * 0.05:.2f}) "
+    f"- {((total_all_images - total_all_clusters) / total_all_images * 100):.0f}% reduction"
+)
+print(
+    f"  Collage mode (50/img): {all_collage_calls} API calls (~${all_collage_calls * 0.05:.2f}) "
+    f"- {((total_all_images - all_collage_calls) / total_all_images * 100):.0f}% reduction"
+)
+print()
+print("=" * 70)
 print(f"✅ Full results saved to: {output_file}")
 print("=" * 70)
 print()
 print("💡 Review the AI labels above to verify they make sense for your photos.")
+print("💡 Enable collage mode in config.py for even greater savings!")

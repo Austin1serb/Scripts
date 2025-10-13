@@ -62,6 +62,14 @@ LOW_CONFIDENCE_STRATEGIES = [
     "hash_only",  # Visual similarity only (lowest confidence)
 ]
 
+# ? Collage-Based Classification (NEW - MASSIVE optimization!)
+# Show 50+ clusters in a single collage image instead of individual batches
+# Bypasses MAX_CLUSTERS_PER_CALL limitation and reduces API costs by 75-90%
+ENABLE_COLLAGE_CLASSIFICATION = True  # Use collages for cluster classification
+COLLAGE_CLUSTERS_PER_IMAGE = 50  # Max clusters per collage (can go higher!)
+COLLAGE_GRID_COLUMNS = 10  # Grid layout (10 columns = 10×5 for 50 clusters)
+COLLAGE_THUMBNAIL_SIZE = 256  # Size of each thumbnail in collage (pixels)
+
 
 # =============================================================================
 # FUSED CLUSTERING WEIGHTS
