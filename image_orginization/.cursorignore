@@ -17,3 +17,21 @@ wheels/
 # IDE
 .vscode/
 .idea/
+
+node_modules/
+.next/
+out/
+dist/
+.build/
+.turbo/
+coverage/
+*.lock
+public/**
+assets/**
+data/**
+**/*.png
+**/*.jpg
+**/*.pdf
+**/*.mp4
+logs/**
+tmp/**

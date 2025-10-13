@@ -37,7 +37,7 @@ run
 # Override defaults from config.py by uncommenting:
 
 
-# DEFAULT_ARGS += " --classify"            # Enable AI ai_classification
+DEFAULT_ARGS += " --classify"  # Enable AI ai_classification
 DEFAULT_ARGS += " --brand 'RC Concrete'"  # Set brand name
 
 
