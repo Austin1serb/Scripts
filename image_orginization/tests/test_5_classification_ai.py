@@ -9,6 +9,7 @@ for each cluster so you can verify the labels make sense.
 import json
 from pathlib import Path
 
+from photo_organizer.config import DEFAULT_MODEL
 from photo_organizer.models import Item
 from photo_organizer.ai_classification import classify_cluster_examples
 
@@ -80,7 +81,7 @@ print()
 labels = classify_cluster_examples(
     groups=groups,
     batch_size=12,
-    model="gpt-4o",
+    model=DEFAULT_MODEL,
 )
 
 # Display results with full details
@@ -192,4 +193,3 @@ print(f"✅ Full results saved to: {output_file}")
 print("=" * 70)
 print()
 print("💡 Review the AI labels above to verify they make sense for your photos.")
-print("💡 Enable collage mode in config.py for even greater savings!")

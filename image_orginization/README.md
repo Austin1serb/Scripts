@@ -42,7 +42,7 @@ python main.py run \
   --model gpt-4o
 ```
 
-### With Cascading Classification (Recommended)
+### With Unified Matching (Recommended)
 
 ```bash
 python main.py run \
@@ -50,15 +50,16 @@ python main.py run \
   --output "/path/to/organized" \
   --brand "bespoke-concrete" \
   --classify \
-  --assign-singletons \  # Enable label-guided singleton matching
+  --assign-singletons \  # Enable unified matching
   --batch-size 12 \
   --model gpt-4o
 ```
 
-**Benefits of cascading classification:**
-- Matches singletons against unlimited clusters (not limited to 10)
-- Uses label semantics + visual similarity for better accuracy
-- High-confidence clusters inform singleton assignment
+**Benefits of unified matching:**
+- Matches singletons AND hash_only clusters against ALL confident clusters
+- No 10-cluster limitation (uses collage comparison)
+- Simple, unified logic for all uncertain items
+- Reduces API calls by ~90% compared to individual classification
 
 ### Advanced Options
 
@@ -89,7 +90,7 @@ python main.py run \
 | `--hash-threshold` | `14` | Max pHash distance for same cluster (0-64 scale) |
 | `--site-distance-feet` | `900.0` | GPS clustering radius in feet |
 | `--classify` | `False` | Enable OpenAI classification |
-| `--assign-singletons` | `False` | Enable cascading classification with label-guided singleton matching |
+| `--assign-singletons` | `True` | Enable unified matching for singletons + hash_only clusters |
 | `--model` | `o4-mini` | OpenAI vision model |
 | `--batch-size` | `12` | Images per API batch (reduce if hitting rate limits) |
 | `--rotate-cities` | `True` | Rotate cities if GPS missing |
@@ -125,14 +126,17 @@ RETRY_DELAY = 5.0           # Initial retry delay (uses exponential backoff)
    - **Smart Example Selection**: Picks best representative image from each cluster
      - Prefers: GPS-tagged photos (on-site) + middle by timestamp (best lighting)
      - Avoids: First image (test shot) and last image (rushed)
-   - **🔄 Cascading Classification** (NEW with `--assign-singletons`):
-     - Phase 1: Classifies high-confidence clusters first (GPS, time+filename)
-     - Phase 2: Classifies singleton images to get their labels
-     - Phase 3: Filters clusters by matching labels for unlimited cluster comparison
-     - Phase 4: Assigns singletons to matching clusters using label-guided AI
-     - Phase 5: Classifies remaining low-confidence clusters and unmatched singletons
-     - **Benefit**: Can match singletons against ANY cluster (not limited to first 10!)
-   - Example: 100 images in 10 clusters = 10 API calls instead of 9+ batches
+   - **🔄 Unified Matching** (NEW with `--assign-singletons`):
+     - **Simple 3-phase approach**: Treats singletons and hash_only clusters identically
+     - Phase 1: Separates confident (GPS/Time/Filename) vs uncertain (hash_only/singletons)
+     - Phase 2: Classifies all confident clusters first
+     - Phase 3: Matches ALL uncertain items against confident clusters using collage comparison
+     - Phase 4: Classifies any remaining unmatched items
+     - **Benefits**: 
+       - No 10-cluster limitation (uses collage of ALL clusters)
+       - Validates hash_only clusters (not just singletons)
+       - Simpler logic, better accuracy
+   - Example: 100 images in 10 clusters = 10 API calls instead of 100
    - Batch classification using OpenAI Vision API
    - Structured output with confidence scores
    - 24 concrete construction type labels (see full list below)

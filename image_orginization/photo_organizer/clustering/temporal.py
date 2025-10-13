@@ -6,6 +6,7 @@ from typing import List, Optional, Dict
 import numpy as np
 import imagehash
 from ..models import Item
+from ..config import DEFAULT_TIME_GAP_MINUTES
 
 
 def phash_score(
@@ -41,21 +42,13 @@ def time_score(datetime_a: Optional[datetime], datetime_b: Optional[datetime]) -
         datetime_a, datetime_b: Datetime objects to compare
 
     Returns:
-        Similarity score between 0.0 and 1.0 (smaller gap = higher score)
+        1.0 if within DEFAULT_TIME_GAP_MINUTES, 0.0 otherwise
     """
     if not datetime_a or not datetime_b:
         return 0.0
 
     time_gap_minutes = abs((datetime_a - datetime_b).total_seconds()) / 60.0
-    if time_gap_minutes <= 5:
-        return 1.0
-    if time_gap_minutes <= 15:
-        return 0.7
-    if time_gap_minutes <= 30:
-        return 0.5
-    if time_gap_minutes <= 120:
-        return 0.2
-    return 0.0
+    return 1.0 if time_gap_minutes <= DEFAULT_TIME_GAP_MINUTES else 0.0
 
 
 def phash_median(hashes) -> Optional[imagehash.ImageHash]:

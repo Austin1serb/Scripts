@@ -16,7 +16,7 @@ def create_cluster_collage(
     labels: Optional[Dict[str, Dict]] = None,
     max_clusters: int = 50,
     grid_cols: int = 10,
-    thumb_size: int = 256,
+    thumb_size: int = 384,
     output_path: Optional[Path] = None,
 ) -> Path:
     """Create a labeled collage of cluster example images.

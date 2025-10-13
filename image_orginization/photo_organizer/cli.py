@@ -49,9 +49,9 @@ from .config import (
 from .ingestion import ingest
 from .ai_classification import (
     classify_cluster_examples,
-    classify_clusters_with_collage,
-    assign_singletons_batched,
-    assign_singletons_with_collage,
+    match_uncertain_items_with_collage,
+    separate_confident_uncertain_clusters,
+    apply_matches_to_groups,
 )
 from .clustering import cluster_gps_only, fused_cluster, cluster_phash_only
 from .organization import organize
@@ -274,12 +274,30 @@ def main():
     # Combine
     groups = gps_groups + th_groups
 
-    # NOTE: Singleton assignment moved to after classification (cascading flow)
+    # Tag each item with its clustering strategy for later separation
+    for group in gps_groups:
+        for item in group:
+            item.strategy = "gps_location"
+
+    for group in th_groups:
+        # Determine strategy based on cluster characteristics
+        has_datetime_count = sum(1 for item in group if item.dt is not None)
+        if has_datetime_count >= len(group) / 2:
+            strategy = "time+filename+hash"
+        else:
+            # Check if filename similarity was strong
+            # For now, default to hash_only for non-GPS, non-time clusters
+            strategy = "hash_only"
+
+        for item in group:
+            item.strategy = strategy
+
+    # NOTE: Singleton assignment moved to after classification (unified matching flow)
     # Cluster summary will be written after classification when groups are finalized
 
     # 3) Classification (OPTIMIZED: classify only cluster examples)
     print("\n" + "=" * 60)
-    print("STEP 3: CLASSIFICATION (Cascading)")
+    print("STEP 3: CLASSIFICATION (Unified Matching)")
     print("=" * 60)
 
     labels: Dict[str, Dict] = {
@@ -288,143 +306,83 @@ def main():
 
     if args.classify:
         from .config import (
-            ENABLE_CASCADING_CLASSIFICATION,
-            ENABLE_COLLAGE_CLASSIFICATION,
-            HIGH_CONFIDENCE_STRATEGIES,
-            COLLAGE_CLUSTERS_PER_IMAGE,
+            ENABLE_UNIFIED_MATCHING,
+            CONFIDENT_STRATEGIES,
+            UNCERTAIN_STRATEGIES,
         )
 
-        if args.assign_singletons and ENABLE_CASCADING_CLASSIFICATION:
-            # CASCADING CLASSIFICATION: 3-phase approach
-            print("🔄 Using cascading classification (label-guided singleton matching)")
+        if args.assign_singletons and ENABLE_UNIFIED_MATCHING:
+            # UNIFIED MATCHING: Simplified 3-phase approach
+            print("🔄 Using unified matching (singletons + hash_only clusters)")
 
-            # Phase 1: Separate high-confidence clusters, low-confidence, and singletons
-            print("\n📊 Phase 1: Separating clusters by confidence...")
-            high_conf_clusters = []
-            low_conf_clusters = []
-            singleton_clusters = []
+            # Convert groups to (cluster_id, items) format
+            indexed_groups = [(idx, g) for idx, g in enumerate(groups)]
 
-            for g in groups:
-                if len(g) == 1:
-                    singleton_clusters.append(g)
-                else:
-                    # Determine cluster strategy from metadata
-                    has_gps = any(item.gps for item in g)
-                    has_datetime_count = sum(1 for item in g if item.dt is not None)
+            # Phase 1: Separate confident vs uncertain clusters
+            print("\n📊 Phase 1: Separating confident vs uncertain clusters...")
+            confident_clusters, uncertain_items = separate_confident_uncertain_clusters(
+                indexed_groups,
+                CONFIDENT_STRATEGIES,
+                UNCERTAIN_STRATEGIES,
+            )
 
-                    if has_gps:
-                        strategy = "gps_location"
-                    elif has_datetime_count >= len(g) / 2:
-                        strategy = "time+filename+hash"
-                    else:
-                        strategy = "hash_only"
+            print(f"  ✅ Confident clusters: {len(confident_clusters)}")
+            print(f"  ⚠️  Uncertain items: {len(uncertain_items)}")
 
-                    if strategy in HIGH_CONFIDENCE_STRATEGIES:
-                        high_conf_clusters.append(g)
-                    else:
-                        low_conf_clusters.append(g)
-
-            print(f"  ✅ High-confidence clusters: {len(high_conf_clusters)}")
-            print(f"  ⚠️  Low-confidence clusters: {len(low_conf_clusters)}")
-            print(f"  🔍 Singletons: {len(singleton_clusters)}")
-
-            # Phase 2: Classify high-confidence clusters FIRST
-            print("\n🎯 Phase 2: Classifying high-confidence clusters...")
-            high_conf_labels = {}
-            if high_conf_clusters:
-                if ENABLE_COLLAGE_CLASSIFICATION:
-                    print(
-                        f"  🖼️  Using collage mode ({COLLAGE_CLUSTERS_PER_IMAGE} clusters per image)"
-                    )
-                    high_conf_labels = classify_clusters_with_collage(
-                        high_conf_clusters,
-                        collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
-                        model=args.model,
-                    )
-                else:
-                    high_conf_labels = classify_cluster_examples(
-                        high_conf_clusters, args.batch_size, args.model
-                    )
-                labels.update(high_conf_labels)
-
-            # Phase 3: Assign singletons using label-guided matching
-            print("\n🔗 Phase 3: Label-guided singleton assignment...")
-            if singleton_clusters and high_conf_clusters:
-                singleton_items = [g[0] for g in singleton_clusters]
+            # Phase 2: Classify confident clusters FIRST
+            print("\n🎯 Phase 2: Classifying confident clusters...")
+            confident_labels = {}
+            if confident_clusters:
+                # Extract just the items (not the cluster_id) for classification
+                confident_groups_only = [items for _, items in confident_clusters]
 
                 print(
-                    f"  Matching {len(singleton_items)} singletons against "
-                    f"{len(high_conf_clusters)} labeled clusters..."
+                    f"  🖼️  Classifying {len(confident_groups_only)} confident clusters..."
+                )
+                confident_labels = classify_cluster_examples(
+                    confident_groups_only, args.batch_size, args.model
+                )
+                labels.update(confident_labels)
+
+                # Map cluster_id -> label for uncertain matching
+                cluster_id_to_label = {}
+                for cluster_id, items in confident_clusters:
+                    # Get label for first item in cluster (all items get same label)
+                    first_item_label = confident_labels.get(items[0].id, {})
+                    cluster_id_to_label[cluster_id] = first_item_label
+
+            # Phase 3: Match uncertain items against confident clusters
+            print("\n🔗 Phase 3: Matching uncertain items...")
+            if uncertain_items and confident_clusters:
+                assignments = match_uncertain_items_with_collage(
+                    uncertain_items,
+                    confident_clusters,
+                    cluster_id_to_label,
+                    model=args.model,
                 )
 
-                # Call assignment function (collage or cascading)
-                if ENABLE_COLLAGE_CLASSIFICATION:
-                    print(
-                        f"  🖼️  Using collage mode (all {len(high_conf_clusters)} clusters in one image)"
-                    )
-                    assignments = assign_singletons_with_collage(
-                        singleton_items,
-                        high_conf_clusters,
-                        cluster_labels=high_conf_labels,
-                        model=args.model,
-                        max_clusters_per_collage=COLLAGE_CLUSTERS_PER_IMAGE,
-                    )
-                else:
-                    assignments = assign_singletons_batched(
-                        singleton_items,
-                        high_conf_clusters,
-                        model=args.model,
-                        cluster_labels=high_conf_labels,
-                    )
+                # Apply matches to groups
+                groups_updated = apply_matches_to_groups(indexed_groups, assignments)
 
-                # Merge assigned singletons into their matched clusters
-                matched_count = 0
-                for singleton_id, cluster_idx in assignments.items():
-                    if cluster_idx != -1 and 0 <= cluster_idx < len(high_conf_clusters):
-                        singleton_item = next(
-                            (
-                                item
-                                for item in singleton_items
-                                if item.id == singleton_id
-                            ),
-                            None,
-                        )
-                        if singleton_item:
-                            high_conf_clusters[cluster_idx].append(singleton_item)
-                            matched_count += 1
+                # Extract just the items (remove cluster_ids)
+                groups = [items for _, items in groups_updated]
 
-                # Rebuild groups: high-conf + low-conf + remaining singletons
-                remaining_singletons = [
-                    [item]
-                    for item in singleton_items
-                    if assignments.get(item.id, -1) == -1
-                ]
-                groups = high_conf_clusters + low_conf_clusters + remaining_singletons
-
+                matched = sum(1 for cid in assignments.values() if cid != -1)
                 print(
-                    f"  ✅ Merged {matched_count} singletons, "
-                    f"{len(remaining_singletons)} singletons remain"
+                    f"  ✅ Matched {matched}/{len(uncertain_items)} uncertain items to confident clusters"
                 )
             else:
-                groups = high_conf_clusters + low_conf_clusters + singleton_clusters
+                # Just extract items from indexed groups
+                groups = [items for _, items in indexed_groups]
 
-            # Phase 4: Classify remaining low-confidence clusters + singletons
+            # Phase 4: Classify any remaining unclassified clusters
             print("\n🔍 Phase 4: Classifying remaining clusters...")
-            remaining_groups = low_conf_clusters + [g for g in groups if len(g) == 1]
+            remaining_groups = [g for g in groups if g[0].id not in labels]
             if remaining_groups:
-                if ENABLE_COLLAGE_CLASSIFICATION:
-                    print(
-                        f"  🖼️  Using collage mode for {len(remaining_groups)} remaining clusters"
-                    )
-                    remaining_labels = classify_clusters_with_collage(
-                        remaining_groups,
-                        collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
-                        model=args.model,
-                    )
-                else:
-                    remaining_labels = classify_cluster_examples(
-                        remaining_groups, args.batch_size, args.model
-                    )
+                print(f"  🖼️  Classifying {len(remaining_groups)} remaining clusters...")
+                remaining_labels = classify_cluster_examples(
+                    remaining_groups, args.batch_size, args.model
+                )
                 labels.update(remaining_labels)
 
             total_images = sum(len(g) for g in groups)
@@ -436,18 +394,9 @@ def main():
             print(f"\n💰 Total Cost Savings: {savings_pct:.0f}% fewer API requests!")
 
         else:
-            # ORIGINAL FLOW: No cascading, classify all clusters
-            if ENABLE_COLLAGE_CLASSIFICATION:
-                print(
-                    f"🖼️  Using collage mode ({COLLAGE_CLUSTERS_PER_IMAGE} clusters per image)"
-                )
-                labels = classify_clusters_with_collage(
-                    groups,
-                    collage_size=COLLAGE_CLUSTERS_PER_IMAGE,
-                    model=args.model,
-                )
-            else:
-                labels = classify_cluster_examples(groups, args.batch_size, args.model)
+            # ORIGINAL FLOW: No unified matching, just classify all clusters
+            print(f"🖼️  Classifying all {len(groups)} clusters...")
+            labels = classify_cluster_examples(groups, args.batch_size, args.model)
 
             total_images = sum(len(g) for g in groups)
             savings_pct = (

@@ -16,6 +16,7 @@ Usage:
 import json
 import sys
 from pathlib import Path
+from collections import Counter
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -23,8 +24,13 @@ sys.path.insert(0, str(project_root))
 
 from photo_organizer.ingestion import ingest
 from photo_organizer.clustering import cluster_gps_only, fused_cluster
-from photo_organizer.utils.filename import name_features
-from photo_organizer.config import DEFAULT_SITE_DISTANCE_FEET, IMAGE_DIR, SCRIPT_DIR
+from photo_organizer.utils.filename import name_features, filename_score
+from photo_organizer.config import (
+    DEFAULT_SITE_DISTANCE_FEET,
+    IMAGE_DIR,
+    SCRIPT_DIR,
+    FILENAME_STRONG_THRESHOLD,
+)
 
 # Setup paths - use same as main.py
 input_dir = Path(IMAGE_DIR)
@@ -106,11 +112,52 @@ def get_thumb_path(original_filename: str, work_dir: Path) -> str:
     return str(thumb_path.resolve())
 
 
+def detect_cluster_strategy(cluster, name_map):
+    """Detect which clustering strategy was used for this cluster.
+
+    Returns one of:
+    - 'gps_location': GPS coordinates available
+    - 'time_filename_hash': Items have datetime (fused strategy 1)
+    - 'filename_hash': No datetime but strong filename patterns (fused strategy 2)
+    - 'hash_only': Visual similarity only (fused strategy 3)
+    """
+    # Check if GPS-based
+    if any(item.gps for item in cluster):
+        return "gps_location"
+
+    # For fused clusters, determine which sub-strategy
+    # Check if majority have datetime
+    with_datetime = sum(1 for item in cluster if item.dt)
+    if with_datetime / len(cluster) > 0.5:
+        return "time_filename_hash"
+
+    # Check if filenames are strong (similar patterns)
+    if len(cluster) >= 2:
+        # Sample filename similarities
+        sample_size = min(5, len(cluster))
+        similarities = []
+        for i in range(sample_size):
+            for j in range(i + 1, sample_size):
+                if i < len(cluster) and j < len(cluster):
+                    feat_a = name_map[cluster[i].id]
+                    feat_b = name_map[cluster[j].id]
+                    similarities.append(filename_score(feat_a, feat_b))
+
+        if (
+            similarities
+            and sum(similarities) / len(similarities) > FILENAME_STRONG_THRESHOLD
+        ):
+            return "filename_hash"
+
+    # Fallback to hash-only
+    return "hash_only"
+
+
 summary = []
 cluster_num = 1
 for g in groups:
+    strategy = detect_cluster_strategy(g, name_map)
     has_gps = any(item.gps for item in g)
-    strategy = "gps_location" if has_gps else "fused_clustering"
 
     summary.append(
         {
@@ -160,11 +207,40 @@ print(f"   Smallest cluster: {min(len(g) for g in groups)}")
 print(f"   Singletons: {sum(1 for g in groups if len(g) == 1)}")
 print()
 
+# Calculate strategy statistics
+strategy_photos = Counter()
+strategy_clusters = Counter()
+
+for cluster_info in summary:
+    strategy = cluster_info["strategy"]
+    strategy_photos[strategy] += cluster_info["count"]
+    strategy_clusters[strategy] += 1
+
+# Strategy display names
+strategy_names = {
+    "gps_location": "GPS Location",
+    "time_filename_hash": "Time + Filename + Hash",
+    "filename_hash": "Filename + Hash",
+    "hash_only": "Hash Only (Visual Similarity)",
+}
+
+print("📍 Clustering Strategy Breakdown:")
+for strategy in ["gps_location", "time_filename_hash", "filename_hash", "hash_only"]:
+    if strategy in strategy_photos:
+        photos = strategy_photos[strategy]
+        clusters = strategy_clusters[strategy]
+        name = strategy_names[strategy]
+        print(f"   {name}: {photos} photos in {clusters} clusters")
+print()
+
 # Show first 5 clusters
 print("First 5 clusters:")
 for i, cluster_info in enumerate(summary[:5], 1):
+    strategy_name = strategy_names.get(
+        cluster_info["strategy"], cluster_info["strategy"]
+    )
     print(
-        f"  {i}. {cluster_info['example']} ({cluster_info['count']} images, {cluster_info['strategy']})"
+        f"  {i}. {cluster_info['example']} ({cluster_info['count']} images, {strategy_name})"
     )
 
 print()

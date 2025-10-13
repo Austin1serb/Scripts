@@ -1,17 +1,15 @@
 """OpenAI GPT Vision-based image classification and singleton assignment."""
 
+import json
+import tempfile
 import time
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from ..models import Item
 from ..config import (
     LABELS,
     MESSAGES,
-    SINGLETON_BATCH_SIZE,
-    CLUSTER_SAMPLES_PER_CLUSTER,
-    MAX_CLUSTERS_PER_CALL,
-    MAX_SINGLETONS_TO_ASSIGN,
     DEFAULT_MODEL,
     API_RATE_LIMIT_DELAY,
     MAX_RETRIES,
@@ -22,15 +20,10 @@ from ..utils.loading_spinner import Spinner
 from .utils import (
     parse_json_response,
     create_image_message,
-    create_singleton_image_message,
-    create_cluster_sample_message,
 )
-from .schemas import get_classification_schema, get_singleton_assignment_schema
+from .schemas import get_classification_schema
 from .messages import (
     build_classification_messages,
-    build_singleton_assignment_messages,
-    build_singleton_assignment_messages_with_labels,
-    add_cluster_label_message,
 )
 
 # Load environment variables from .env file
@@ -326,551 +319,281 @@ def classify_cluster_examples(
     return all_labels
 
 
-def assign_singletons_batched(
-    singleton_items: List[Item],
-    multi_photo_clusters: List[List[Item]],
+# ===============================================================
+# UNIFIED MATCHING: Singletons + hash_only Clusters
+# ===============================================================
+
+
+def match_uncertain_items_with_collage(
+    uncertain_items: List[Tuple[int, List[Item]]],
+    confident_clusters: List[Tuple[int, List[Item]]],
+    cluster_labels: Dict[int, Dict],
     model: str = DEFAULT_MODEL,
-    cluster_labels: Dict[str, Dict] = None,
-) -> Dict[str, int]:
-    """Match singleton photos to existing clusters using AI vision (BATCHED).
+) -> Dict[int, int]:
+    """
+    Match uncertain items (singletons & hash_only clusters) against confident
+    clusters using collage comparison.
 
-    Processes singletons in batches to reduce API costs. For each singleton,
-    AI determines which cluster (if any) it belongs to based on visual similarity,
-    materials, construction context, and lighting.
-
-    NEW (Cascading Classification): If cluster_labels are provided, uses label-guided
-    matching to filter clusters by semantic similarity, allowing unlimited clusters.
+    This is a unified approach that treats both singletons and hash_only clusters
+    identically: both need validation and should be compared against all confident
+    clusters to find the best match.
 
     Args:
-        singleton_items: List of single-photo items to assign
-        multi_photo_clusters: List of clusters (each cluster is a list of Items)
-        model: OpenAI model to use (e.g., 'gpt-4o')
-        cluster_labels: Optional dict mapping cluster example IDs to labels
-                       (enables cascading classification with label filtering)
+        uncertain_items: List of (cluster_id, items) that need matching.
+                        Can be singletons (1 item) or hash_only clusters (2+ items)
+        confident_clusters: List of (cluster_id, items) to match against.
+                           These are GPS/Time/Filename clusters (high confidence)
+        cluster_labels: Dict mapping cluster_id -> {label, confidence, descriptor}
+                       for already-classified confident clusters
+        model: OpenAI model to use (default: gpt-4o)
 
     Returns:
-        Dictionary mapping singleton item IDs to cluster indices:
-        - {singleton_id: cluster_index} for matched singletons
-        - cluster_index = -1 means "no match found"
+        Dict mapping uncertain_cluster_id -> target_cluster_id
+        Returns -1 if no match found (item stays separate)
 
     Example:
-        >>> assignments = assign_singletons_batched(singletons, clusters)
-        >>> # {"img_55.jpg": 3, "img_72.jpg": -1, "img_88.jpg": 1}
-        >>> # → img_55 matches cluster 3, img_72 has no match, img_88 matches cluster 1
-    """
-    if OpenAI is None:
-        print("[warn] openai package not installed, skipping singleton assignment")
-        return {item.id: -1 for item in singleton_items}
+        uncertain_items = [(91, [singleton_item]), (23, [3 hash_only items])]
+        confident_clusters = [(5, [gps_items]), (8, [time_items])]
+        cluster_labels = {5: {"label": "driveway-repair", ...}, ...}
 
-    # Limit processing for cost control (configured in config.py)
-    if len(singleton_items) > MAX_SINGLETONS_TO_ASSIGN:
-        print(
-            f"[info] Limiting singleton assignment to first {MAX_SINGLETONS_TO_ASSIGN} "
-            f"of {len(singleton_items)} singletons"
-        )
-        singleton_items = singleton_items[:MAX_SINGLETONS_TO_ASSIGN]
+        Result: {91: 5, 23: -1}  # singleton merges, hash_only stays separate
+    """
+    from openai import OpenAI
+
+    from ..config import API_RATE_LIMIT_DELAY
+    from .collage import create_cluster_collage
+    from .schemas import get_uncertain_match_schema
+    from .utils import Spinner, b64
+
+    if not uncertain_items:
+        print("No uncertain items to match.")
+        return {}
+
+    if not confident_clusters:
+        print("No confident clusters to match against.")
+        return {cid: -1 for cid, _ in uncertain_items}
 
     client = OpenAI()
-    assignments: Dict[str, int] = {}
+    assignments = {}
 
-    # Determine if we're using cascading classification with labels
-    use_labels = cluster_labels is not None
+    print(
+        f"\n🔍 Matching {len(uncertain_items)} uncertain items against "
+        f"{len(confident_clusters)} confident clusters..."
+    )
 
-    # Prepare cluster samples (first N photos from each cluster)
-    cluster_samples = []
-    for idx, cluster in enumerate(multi_photo_clusters):
-        if len(cluster) > 1:  # Only include multi-photo clusters
-            example_id = cluster[0].id
-            label = (
-                cluster_labels.get(example_id, {}).get("label", "unknown")
-                if use_labels
-                else None
-            )
-            cluster_samples.append(
-                {
-                    "cluster_id": idx,
-                    "samples": cluster[:CLUSTER_SAMPLES_PER_CLUSTER],
-                    "label": label,  # Include label for cascading
-                }
-            )
+    # Create collage of all confident clusters (one-time operation)
+    print("\n📸 Creating collage of confident clusters...")
+    confident_cluster_ids = [cid for cid, _ in confident_clusters]
+    confident_examples = {
+        cid: get_best_example(items) for cid, items in confident_clusters
+    }
 
-    if not cluster_samples:
-        print("[warn] No multi-photo clusters available for singleton assignment")
-        return {item.id: -1 for item in singleton_items}
+    collage_path = Path(tempfile.gettempdir()) / "confident_clusters_collage.jpg"
+    create_cluster_collage(
+        clusters=confident_clusters,
+        cluster_labels=cluster_labels,
+        output_path=collage_path,
+        include_labels=True,
+        include_cluster_ids=True,
+    )
 
-    # Get JSON schema for structured output
-    schema = get_singleton_assignment_schema()
+    # Encode collage once
+    collage_b64 = b64(collage_path)
 
-    def do_batch(batch: List[Item]):
-        """Process a batch of singletons."""
-        # CASCADING CLASSIFICATION: If labels provided, filter clusters per singleton
-        if use_labels:
-            # Classify each singleton first to get its label
-            print("  🔍 Classifying singletons for label-guided matching...")
-            singleton_labels = {}
-            for singleton in batch:
-                label_result = classify_singleton(singleton, model)
-                singleton_labels[singleton.id] = label_result["label"]
-
-            # For each singleton, filter clusters by matching label
-            for singleton in batch:
-                singleton_label = singleton_labels[singleton.id]
-
-                # Filter clusters: prioritize matching labels, include top N as fallback
-                matching_clusters = [
-                    c for c in cluster_samples if c["label"] == singleton_label
-                ]
-
-                # If no matches, use all clusters (singleton might be unique)
-                # Otherwise, limit to matching + top 5 largest clusters
-                if matching_clusters:
-                    # Use matching clusters + top 5 largest (for context)
-                    largest_clusters = sorted(
-                        cluster_samples, key=lambda c: len(c["samples"]), reverse=True
-                    )[:5]
-                    clusters_to_show = matching_clusters + [
-                        c for c in largest_clusters if c not in matching_clusters
-                    ]
-                    clusters_to_show = clusters_to_show[:MAX_CLUSTERS_PER_CALL]
-                else:
-                    # No label match, show largest clusters
-                    clusters_to_show = sorted(
-                        cluster_samples, key=lambda c: len(c["samples"]), reverse=True
-                    )[:MAX_CLUSTERS_PER_CALL]
-
-                # Build messages with label context
-                messages = build_singleton_assignment_messages_with_labels(
-                    1, len(clusters_to_show)
-                )
-
-                # Add singleton photo
-                messages.append(
-                    create_singleton_image_message(singleton.id, singleton.thumb)
-                )
-
-                # Add cluster samples with labels
-                for cluster_info in clusters_to_show:
-                    cluster_id = cluster_info["cluster_id"]
-                    samples = cluster_info["samples"]
-                    label = cluster_info["label"]
-
-                    # Add text label for cluster (with label name)
-                    add_cluster_label_message(messages, cluster_id, label, len(samples))
-
-                    # Add sample images from this cluster
-                    for sample_item in samples:
-                        messages.append(
-                            create_cluster_sample_message(sample_item.thumb)
-                        )
-
-                # Call API for this single singleton
-                resp = call_openai_with_retry(
-                    client=client, model=model, messages=messages, schema=schema
-                )
-
-                # Parse response
-                data = parse_json_response(resp.choices[0].message.content)
-                for assignment in data.get("assignments", []):
-                    singleton_id = assignment["singleton_id"]
-                    cluster_id = assignment["cluster_id"]
-                    assignments[singleton_id] = cluster_id
-
+    # Process each uncertain item
+    for uncertain_id, uncertain_group in uncertain_items:
+        # Get best example from uncertain item
+        if len(uncertain_group) == 1:
+            uncertain_example = uncertain_group[0]
+            item_type = "singleton"
         else:
-            # ORIGINAL LOGIC: No labels, batch process singletons
-            clusters_to_show = cluster_samples[:MAX_CLUSTERS_PER_CALL]
-
-            # Build initial messages
-            messages = build_singleton_assignment_messages(
-                len(batch), len(clusters_to_show)
-            )
-
-            # Add singleton photos
-            for singleton in batch:
-                messages.append(
-                    create_singleton_image_message(singleton.id, singleton.thumb)
-                )
-
-            # Add cluster sample photos
-            for cluster_info in clusters_to_show:
-                cluster_id = cluster_info["cluster_id"]
-                samples = cluster_info["samples"]
-
-                # Add text label for cluster (no label name)
-                add_cluster_label_message(
-                    messages, cluster_id, "unlabeled", len(samples)
-                )
-
-                # Add sample images from this cluster
-                for sample_item in samples:
-                    messages.append(create_cluster_sample_message(sample_item.thumb))
-
-            # Call OpenAI API with retry logic
-            resp = call_openai_with_retry(
-                client=client, model=model, messages=messages, schema=schema
-            )
-
-            # Parse response
-            data = parse_json_response(resp.choices[0].message.content)
-            print("raw_response: ", data)
-            for assignment in data.get("assignments", []):
-                singleton_id = assignment["singleton_id"]
-                cluster_id = assignment["cluster_id"]
-                assignments[singleton_id] = cluster_id
-
-    # Process singletons in batches with rate limiting
-    print(
-        f"🤖 AI Singleton Assignment: Processing {len(singleton_items)} singletons "
-        f"in batches of {SINGLETON_BATCH_SIZE}"
-    )
-    for i in range(0, len(singleton_items), SINGLETON_BATCH_SIZE):
-        batch = singleton_items[i : i + SINGLETON_BATCH_SIZE]
-        batch_num = (i // SINGLETON_BATCH_SIZE) + 1
-        total_batches = (
-            len(singleton_items) + SINGLETON_BATCH_SIZE - 1
-        ) // SINGLETON_BATCH_SIZE
-        print(f"  Processing batch {batch_num}/{total_batches}...")
-        do_batch(batch)
-
-        # Rate limit delay between batches (skip after last batch)
-        if i + SINGLETON_BATCH_SIZE < len(singleton_items) and API_RATE_LIMIT_DELAY > 0:
-            print(f"  ⏳ Waiting {API_RATE_LIMIT_DELAY}s before next batch...")
-            time.sleep(API_RATE_LIMIT_DELAY)
-
-    # Count assignments
-    matched = sum(1 for cid in assignments.values() if cid != -1)
-    print(
-        f"✅ Singleton assignment complete: {matched}/{len(singleton_items)} matched to clusters"
-    )
-
-    return assignments
-
-
-# ==============================================================================
-# COLLAGE-BASED CLASSIFICATION (NEW - 75-90% cost reduction!)
-# ==============================================================================
-
-
-def classify_clusters_with_collage(
-    groups: List[List[Item]],
-    collage_size: int = 50,
-    model: str = DEFAULT_MODEL,
-) -> Dict[str, Dict]:
-    """Classify clusters using collages instead of individual batching.
-
-    OPTIMIZATION: Show 50+ clusters in a single collage image instead of
-    sending them individually. Bypasses MAX_CLUSTERS_PER_CALL limitation.
-
-    Cost Savings:
-    - OLD: 100 clusters = 100 API calls
-    - NEW: 100 clusters ÷ 50 per collage = 2 API calls (98% reduction!)
-
-    Args:
-        groups: List of clusters to classify
-        collage_size: Max clusters per collage (default: 50)
-        model: OpenAI model to use
-
-    Returns:
-        Dictionary mapping item IDs to classification results
-
-    Example:
-        >>> labels = classify_clusters_with_collage(groups, collage_size=50)
-        >>> # 100 clusters → 2 API calls instead of 100!
-    """
-    if OpenAI is None:
-        print("[warn] openai package not installed, skipping classification")
-        return {
-            item.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""}
-            for group in groups
-            for item in group
-        }
-
-    from ..utils.collage import create_cluster_collage
-
-    client = OpenAI()
-    all_labels: Dict[str, Dict] = {}
-
-    # Process clusters in collage batches
-    total_collages = (len(groups) + collage_size - 1) // collage_size
-
-    for collage_idx in range(total_collages):
-        start_idx = collage_idx * collage_size
-        end_idx = min(start_idx + collage_size, len(groups))
-        batch_groups = groups[start_idx:end_idx]
+            uncertain_example = get_best_example(uncertain_group)
+            item_type = f"hash_only cluster ({len(uncertain_group)} images)"
 
         print(
-            f"\n🖼️  Creating collage {collage_idx + 1}/{total_collages} "
-            f"({len(batch_groups)} clusters)..."
+            f"\n  🔎 Matching {item_type} #{uncertain_id}: {uncertain_example.thumb.name}"
         )
 
-        # Create collage with cluster examples
-        collage_path = create_cluster_collage(
-            clusters=batch_groups,
-            labels=None,  # No labels yet (we're classifying them)
-            max_clusters=len(batch_groups),
-            grid_cols=10,
-        )
-
-        print(f"  Calling AI to classify {len(batch_groups)} clusters in collage...")
-
-        # Build messages
+        # Build prompt
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are an image classifier for concrete construction photos. "
-                    "You will see a collage with multiple numbered clusters (each marked with #ID). "
-                    "Classify each cluster by its number. Return strict JSON only."
+                    "You are comparing an uncertain photo/cluster against known confident clusters. "
+                    "Determine if the uncertain item belongs to any of the confident clusters based on "
+                    "visual similarity, location features, materials, and context."
                 ),
             },
             {
                 "role": "user",
-                "content": (
-                    f"Classify each of the {len(batch_groups)} numbered clusters in this collage. "
-                    f"Available labels: {', '.join(LABELS)}. "
-                    "For each cluster, return its #ID number, label, confidence (0.0-1.0), "
-                    "and brief descriptor (max 6 words)."
-                ),
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"CONFIDENT CLUSTERS (labeled collage):\n"
+                            f"This collage shows {len(confident_clusters)} confident clusters with their labels.\n\n"
+                            f"UNCERTAIN ITEM:\n"
+                            f"Below is an uncertain item (ID: {uncertain_id}) that needs matching.\n\n"
+                            f"Does this uncertain item belong to any of the confident clusters in the collage?\n"
+                            f"Consider: same physical location, same materials, same surroundings, distinct features.\n\n"
+                            f"If it matches, return the cluster_id and confidence (0.0-1.0).\n"
+                            f"If no match, return cluster_id: -1 and confidence: 0.0.\n"
+                            f"Provide a brief reason for your decision."
+                        ),
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{collage_b64}"},
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{b64(uncertain_example.thumb)}"
+                        },
+                    },
+                ],
             },
         ]
 
-        # Add collage image
-        messages.append(create_image_message("collage", collage_path))
+        # API call with retry logic
+        try:
+            with Spinner(f"Comparing {item_type} #{uncertain_id}..."):
+                response = call_openai_with_retry(
+                    client=client,
+                    model=model,
+                    messages=messages,
+                    response_format=get_uncertain_match_schema(),
+                )
 
-        # Create schema for collage classification
-        schema = {
-            "name": "collage_classify",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "clusters": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "cluster_index": {"type": "integer"},
-                                "label": {"type": "string", "enum": LABELS},
-                                "confidence": {"type": "number"},
-                                "descriptor": {"type": "string"},
-                            },
-                            "required": [
-                                "cluster_index",
-                                "label",
-                                "confidence",
-                                "descriptor",
-                            ],
-                            "additionalProperties": False,
-                        },
-                    }
-                },
-                "required": ["clusters"],
-                "additionalProperties": False,
-            },
-        }
+            result = json.loads(response.choices[0].message.content)
+            cluster_id = result.get("cluster_id", -1)
+            confidence = result.get("confidence", 0.0)
+            reason = result.get("reason", "")
 
-        # Call API
-        resp = call_openai_with_retry(
-            client=client, model=model, messages=messages, schema=schema
-        )
-
-        # Parse response
-        data = parse_json_response(resp.choices[0].message.content)
-
-        # Map cluster indices to actual groups and propagate labels
-        for result in data.get("clusters", []):
-            cluster_idx = result["cluster_index"]
-            if 0 <= cluster_idx < len(batch_groups):
-                group = batch_groups[cluster_idx]
-                cluster_label = {
-                    "label": result.get("label", "unknown"),
-                    "confidence": float(result.get("confidence", 0)),
-                    "descriptor": result.get("descriptor", ""),
-                }
-
-                # Propagate label to all images in cluster
-                for item in group:
-                    all_labels[item.id] = cluster_label.copy()
-
-        # Rate limiting between collages
-        if collage_idx < total_collages - 1 and API_RATE_LIMIT_DELAY > 0:
-            print(f"  ⏳ Waiting {API_RATE_LIMIT_DELAY}s before next collage...")
-            time.sleep(API_RATE_LIMIT_DELAY)
-
-    print(f"\n✅ Classified {len(groups)} clusters using {total_collages} collages")
-    return all_labels
-
-
-def assign_singletons_with_collage(
-    singleton_items: List[Item],
-    multi_photo_clusters: List[List[Item]],
-    cluster_labels: Dict[str, Dict],
-    model: str = DEFAULT_MODEL,
-    max_clusters_per_collage: int = 50,
-) -> Dict[str, int]:
-    """Match singletons to clusters using collage (UNLIMITED cluster comparison!).
-
-    BREAKTHROUGH OPTIMIZATION: Create ONE collage with ALL cluster examples,
-    then match each singleton against the entire collage. No more 10-cluster limit!
-
-    Cost Savings:
-    - OLD: Limited to 10 clusters per singleton
-    - NEW: Show 50+ clusters in one collage!
-    - Result: Can match against UNLIMITED clusters
-
-    Args:
-        singleton_items: List of singleton items to assign
-        multi_photo_clusters: List of all available clusters
-        cluster_labels: Dict of cluster labels from previous classification
-        model: OpenAI model to use
-        max_clusters_per_collage: Max clusters to show (default: 50)
-
-    Returns:
-        Dictionary mapping singleton IDs to cluster indices
-
-    Example:
-        >>> assignments = assign_singletons_with_collage(
-        ...     singletons, all_60_clusters, labels, model="gpt-4o"
-        ... )
-        >>> # Each singleton compares against ALL 60 clusters (not just 10)!
-    """
-    if OpenAI is None:
-        print("[warn] openai package not installed, skipping singleton assignment")
-        return {item.id: -1 for item in singleton_items}
-
-    from ..utils.collage import create_cluster_collage
-
-    # Limit processing for cost control
-    if len(singleton_items) > MAX_SINGLETONS_TO_ASSIGN:
-        print(
-            f"[info] Limiting singleton assignment to first {MAX_SINGLETONS_TO_ASSIGN} "
-            f"of {len(singleton_items)} singletons"
-        )
-        singleton_items = singleton_items[:MAX_SINGLETONS_TO_ASSIGN]
-
-    client = OpenAI()
-    assignments: Dict[str, int] = {}
-
-    # Limit clusters to max_clusters_per_collage
-    clusters_to_show = multi_photo_clusters[:max_clusters_per_collage]
-
-    print(f"\n🖼️  Creating cluster collage with {len(clusters_to_show)} clusters...")
-
-    # Create ONE collage with ALL clusters
-    collage_path = create_cluster_collage(
-        clusters=clusters_to_show,
-        labels=cluster_labels,
-        max_clusters=len(clusters_to_show),
-        grid_cols=10,
-    )
-
-    print(f"✅ Collage created: {len(clusters_to_show)} clusters in one image\n")
-
-    # Get schema for singleton matching
-    schema = {
-        "name": "singleton_collage_match",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "cluster_id": {"type": "integer"},
-                "confidence": {"type": "number"},
-                "reasoning": {"type": "string"},
-            },
-            "required": ["cluster_id", "confidence", "reasoning"],
-            "additionalProperties": False,
-        },
-    }
-
-    # Match each singleton against the collage
-    print(
-        f"🤖 Matching {len(singleton_items)} singletons against collage "
-        f"(batches of {SINGLETON_BATCH_SIZE})...\n"
-    )
-
-    for i in range(0, len(singleton_items), SINGLETON_BATCH_SIZE):
-        batch = singleton_items[i : i + SINGLETON_BATCH_SIZE]
-        batch_num = (i // SINGLETON_BATCH_SIZE) + 1
-        total_batches = (
-            len(singleton_items) + SINGLETON_BATCH_SIZE - 1
-        ) // SINGLETON_BATCH_SIZE
-
-        print(f"  Processing batch {batch_num}/{total_batches}...")
-
-        for singleton in batch:
-            # Build messages
-            messages = [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an expert at matching construction photos to project clusters. "
-                        "You will see a collage of numbered clusters (marked with #ID) and their labels. "
-                        "Determine which cluster the singleton belongs to based on visual similarity, "
-                        "materials, construction type, and context. "
-                        "Return the cluster #ID (0 to N-1), or -1 if no good match exists."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"I have a singleton photo and a collage with {len(clusters_to_show)} clusters. "
-                        "Which cluster does the singleton belong to? "
-                        "Consider the labeled cluster types and visual similarity."
-                    ),
-                },
-                {"role": "user", "content": "Singleton photo:"},
-            ]
-
-            # Add singleton image
-            messages.append(
-                create_singleton_image_message(singleton.id, singleton.thumb)
-            )
-
-            # Add collage
-            messages.append(
-                {
-                    "role": "user",
-                    "content": f"Cluster collage ({len(clusters_to_show)} projects):",
-                }
-            )
-            messages.append(create_image_message("collage", collage_path))
-
-            # Call API
-            resp = call_openai_with_retry(
-                client=client, model=model, messages=messages, schema=schema
-            )
-
-            # Parse response
-            data = parse_json_response(resp.choices[0].message.content)
-            cluster_id = data.get("cluster_id", -1)
-            confidence = data.get("confidence", 0.0)
-
-            # Validate cluster_id
-            if cluster_id < -1 or cluster_id >= len(clusters_to_show):
-                cluster_id = -1
-
-            assignments[singleton.id] = cluster_id
+            assignments[uncertain_id] = cluster_id
 
             # Show match result
-            if cluster_id != -1:
-                cluster_label = cluster_labels.get(
-                    clusters_to_show[cluster_id][0].id, {}
-                ).get("label", "unknown")
+            if cluster_id != -1 and cluster_id in cluster_labels:
+                cluster_label = cluster_labels[cluster_id].get("label", "unknown")
                 print(
-                    f"    {singleton.id} → cluster #{cluster_id} "
+                    f"    ✅ {item_type} #{uncertain_id} → cluster #{cluster_id} "
                     f"({cluster_label}, confidence: {confidence:.0%})"
                 )
+                if reason:
+                    print(f"       Reason: {reason}")
             else:
-                print(f"    {singleton.id} → no match")
+                print(f"    ❌ {item_type} #{uncertain_id} → no match (stays separate)")
+                if reason:
+                    print(f"       Reason: {reason}")
 
-        # Rate limit between batches
-        if i + SINGLETON_BATCH_SIZE < len(singleton_items) and API_RATE_LIMIT_DELAY > 0:
-            print(f"  ⏳ Waiting {API_RATE_LIMIT_DELAY}s before next batch...")
+        except Exception as e:
+            print(f"    ⚠️  Error matching {item_type} #{uncertain_id}: {e}")
+            assignments[uncertain_id] = -1  # Default to no match on error
+
+        # Rate limit between items
+        if API_RATE_LIMIT_DELAY > 0:
             time.sleep(API_RATE_LIMIT_DELAY)
+
+    # Cleanup
+    if collage_path.exists():
+        collage_path.unlink()
 
     # Summary
     matched = sum(1 for cid in assignments.values() if cid != -1)
     print(
-        f"\n✅ Singleton assignment complete: {matched}/{len(singleton_items)} matched to clusters"
+        f"\n✅ Unified matching complete: {matched}/{len(uncertain_items)} matched to confident clusters"
     )
 
     return assignments
+
+
+def separate_confident_uncertain_clusters(
+    groups: List[Tuple[int, List[Item]]],
+    confident_strategies: List[str],
+    uncertain_strategies: List[str],
+) -> Tuple[List[Tuple[int, List[Item]]], List[Tuple[int, List[Item]]]]:
+    """
+    Separate clusters into confident and uncertain groups.
+
+    Args:
+        groups: List of (cluster_id, items) tuples
+        confident_strategies: List of strategy names that are high-confidence
+        uncertain_strategies: List of strategy names that are low-confidence
+
+    Returns:
+        Tuple of (confident_clusters, uncertain_items)
+        - confident_clusters: Multi-image clusters with high-confidence strategies
+        - uncertain_items: Singletons + multi-image clusters with uncertain strategies
+    """
+    confident_clusters = []
+    uncertain_items = []
+
+    for cluster_id, items in groups:
+        # Get strategy from first item (all items in cluster have same strategy)
+        strategy = items[0].strategy if items else "unknown"
+        count = len(items)
+
+        # Singletons are always uncertain (regardless of strategy)
+        if count == 1:
+            uncertain_items.append((cluster_id, items))
+        # Multi-image clusters with uncertain strategies
+        elif strategy in uncertain_strategies:
+            uncertain_items.append((cluster_id, items))
+        # Multi-image clusters with confident strategies
+        elif strategy in confident_strategies:
+            confident_clusters.append((cluster_id, items))
+        else:
+            # Unknown strategy - default to confident if multi-image
+            print(
+                f"  ⚠️  Unknown strategy '{strategy}' for cluster {cluster_id}, treating as confident"
+            )
+            confident_clusters.append((cluster_id, items))
+
+    return confident_clusters, uncertain_items
+
+
+def apply_matches_to_groups(
+    groups: List[Tuple[int, List[Item]]],
+    assignments: Dict[int, int],
+) -> List[Tuple[int, List[Item]]]:
+    """
+    Apply matching assignments by merging uncertain items into target clusters.
+
+    Args:
+        groups: Original list of (cluster_id, items) tuples
+        assignments: Dict mapping uncertain_cluster_id -> target_cluster_id
+                    (-1 means no match, stay separate)
+
+    Returns:
+        Updated list of (cluster_id, items) with merged clusters
+    """
+    # Convert groups to dict for easier manipulation
+    cluster_dict = {cid: items for cid, items in groups}
+
+    # Apply assignments
+    for uncertain_id, target_id in assignments.items():
+        if target_id == -1:
+            # No match - item stays separate
+            continue
+
+        if uncertain_id not in cluster_dict:
+            print(f"  ⚠️  Uncertain cluster {uncertain_id} not found, skipping")
+            continue
+
+        if target_id not in cluster_dict:
+            print(f"  ⚠️  Target cluster {target_id} not found, skipping merge")
+            continue
+
+        # Merge uncertain items into target cluster
+        uncertain_items = cluster_dict[uncertain_id]
+        cluster_dict[target_id].extend(uncertain_items)
+
+        # Remove the now-empty uncertain cluster
+        del cluster_dict[uncertain_id]
+
+        print(
+            f"  ✅ Merged cluster {uncertain_id} ({len(uncertain_items)} images) → cluster {target_id}"
+        )
+
+    # Convert back to list
+    return [(cid, items) for cid, items in cluster_dict.items()]

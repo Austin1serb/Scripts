@@ -37,7 +37,7 @@ def build_singleton_assignment_messages(
             "content": (
                 "You are an expert at matching construction photos to project clusters. "
                 "For each singleton photo, determine which existing cluster (if any) it belongs to. "
-                "Consider: visual similarity, materials, construction phase, lighting, and context. "
+                "Consider: visual similarity, materials, construction phase, lighting, weather conditions, and context. "
                 "Return cluster_id=-1 if no good match exists."
             ),
         },

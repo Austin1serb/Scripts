@@ -78,3 +78,36 @@ def get_singleton_assignment_schema() -> Dict:
             "additionalProperties": False,
         },
     }
+
+
+def get_uncertain_match_schema() -> Dict:
+    """Get JSON schema for uncertain item matching (singletons & hash_only clusters).
+
+    Returns:
+        JSON schema dictionary for OpenAI structured outputs
+    """
+    return {
+        "name": "uncertain_match",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cluster_id": {
+                    "type": "integer",
+                    "description": "Target cluster ID to merge into, or -1 for no match",
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Confidence score for the match",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Brief explanation for the match decision",
+                },
+            },
+            "required": ["cluster_id", "confidence", "reason"],
+            "additionalProperties": False,
+        },
+    }

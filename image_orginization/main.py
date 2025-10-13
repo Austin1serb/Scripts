@@ -38,6 +38,7 @@ run
 
 
 DEFAULT_ARGS += " --classify"  # Enable AI ai_classification
+DEFAULT_ARGS += " --assign-singletons"  # Enable unified matching for uncertain items
 DEFAULT_ARGS += " --brand 'RC Concrete'"  # Set brand name
 
 

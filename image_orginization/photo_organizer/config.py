@@ -33,7 +33,7 @@ DEFAULT_MAX_EDGES = 32  # Max connections per photo
 
 # ? AI Classification
 DEFAULT_AI_CLASSIFY = False
-DEFAULT_MODEL = "o4-mini"
+DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_BATCH_SIZE = 12  # Images per API call
 THUMBNAIL_SIZE = 512  # Thumbnail Size
 
@@ -42,32 +42,31 @@ API_RATE_LIMIT_DELAY = 1.0  # Seconds to wait between API calls (0 = no delay)
 MAX_RETRIES = 3  # Max retries for failed API calls
 RETRY_DELAY = 5.0  # Seconds to wait before retrying after rate limit error
 
-# ? AI Singleton Assignment
-DEFAULT_ASSIGN_SINGLETONS = False  # match singletons to clusters using AI
-MAX_SINGLETONS_TO_ASSIGN = 20  # Max singletons to process
-SINGLETON_BATCH_SIZE = 5  # Process N singletons per API call
-CLUSTER_SAMPLES_PER_CLUSTER = 2  # Show AI N sample images from each cluster
-MAX_CLUSTERS_PER_CALL = 10  # Max clusters to compare against per API call
+# ? AI Unified Matching (Singletons + hash_only Clusters)
+DEFAULT_ASSIGN_SINGLETONS = True  # Enable unified matching for uncertain items
+MAX_SINGLETONS_TO_ASSIGN = 199  # Max uncertain items to process (cost control)
 
-# ? Cascading Classification (NEW)
-# Classify high-confidence clusters first, then use their labels to filter
-# singleton matching against unlimited clusters (not just first 10)
-ENABLE_CASCADING_CLASSIFICATION = True  # Use label-guided singleton assignment
-HIGH_CONFIDENCE_STRATEGIES = [
-    "gps_location",  # GPS-based clusters (most reliable)
-    "time+filename+hash",  # Strong temporal + filename + visual match
-]
-LOW_CONFIDENCE_STRATEGIES = [
-    "filename+hash",  # Filename + visual only (medium confidence)
-    "hash_only",  # Visual similarity only (lowest confidence)
+# Unified matching treats singletons and hash_only clusters identically:
+# both are "uncertain" items that need validation against confident clusters
+ENABLE_UNIFIED_MATCHING = True  # Use unified matching (simpler than cascading)
+
+CONFIDENT_STRATEGIES = [
+    "gps_location",  # GPS-based clusters (high confidence)
+    "time+filename+hash",  # Time + filename + visual match
+    "filename+hash",  # Filename + visual match (medium-high confidence)
 ]
 
-# ? Collage-Based Classification (NEW - MASSIVE optimization!)
+UNCERTAIN_STRATEGIES = [
+    "hash_only",  # Visual similarity only (needs validation)
+]
+# Note: Singletons (count == 1) are ALWAYS treated as uncertain, regardless of strategy
+
+# ? Collage-Based Classification (MASSIVE optimization!)
 # Show 50+ clusters in a single collage image instead of individual batches
-# Bypasses MAX_CLUSTERS_PER_CALL limitation and reduces API costs by 75-90%
-ENABLE_COLLAGE_CLASSIFICATION = True  # Use collages for cluster classification
+# Reduces API costs by 75-90% and allows comparing against unlimited clusters
+ENABLE_COLLAGE_CLASSIFICATION = True  # Use collages for classification
 COLLAGE_CLUSTERS_PER_IMAGE = 50  # Max clusters per collage (can go higher!)
-COLLAGE_GRID_COLUMNS = 10  # Grid layout (10 columns = 10×5 for 50 clusters)
+COLLAGE_GRID_COLUMNS = 10  # Grid layout (10 columns = 10×5 for 50)
 COLLAGE_THUMBNAIL_SIZE = 256  # Size of each thumbnail in collage (pixels)
 
 
@@ -132,34 +131,34 @@ CITIES = {
 # =============================================================================
 # Canonical labels for classification and filename slugs
 LABELS = [
-    # Driveways
-    "concrete-driveway",
-    "driveway-replacement",
-    "broom-finish-driveway",
-    "stamped-concrete-driveway",
-    "exposed-aggregate-driveway",
-    # Patios
-    "concrete-patio",
-    "stamped-concrete-patio",
-    "exposed-aggregate-patio",
-    "fire-pit-surround",
-    "seat-wall-bench",
-    # Walkways & sidewalks
-    "concrete-walkway",
-    "stamped-concrete-walkway",
-    "exposed-aggregate-walkway",
-    "sidewalk",
-    # Steps, walls, slabs
-    "concrete-steps",
-    "retaining-wall",
-    "concrete-slab",
-    # Repairs & treatments
+    "stamped-concrete",
     "concrete-repair",
-    "concrete-resurfacing",
-    # Broad style bucket
-    "decorative-concrete",
-    # Fallback
-    "concrete-project",
+    "porch-concrete",
+    "stamped-concrete-patio",
+    "concrete-driveway",
+    "concrete-patio",
+    "retaining-wall",
+    "stamped-concrete-patios",
+    "concrete-driveway-repair",
+    "concrete-stamping",
+    "exposed-aggregate-concrete",
+    "residential-concrete",
+    "retaining-wall-repair",
+    "concrete-patio",
+    "retaining-wall-builders",
+    "concrete-driveway-companies",
+    "concrete-patio-companies",
+    "concrete-walkway",
+    "patio-concrete",
+    "stamped-concrete-patios",
+    "stamped-concrete",
+    "concrete-sidewalk",
+    "concrete-steps-repair",
+    "local-concrete",
+    "concrete-slab",
+    "exposed-aggregate-driveway",
+    "exposed-aggregate-patio",
+    "concrete",
     "unknown",
 ]
 
@@ -199,124 +198,379 @@ SURFACE_MAP = {
 
 # Semantic keyword expansions per label (no "near me"; use page-level geo)
 SEMANTIC_KEYWORDS = {
-    # Head terms that map well to /services and internal linking
-    "concrete-driveway": [
-        "concrete-driveway",
-        "concrete-driveway-contractors",
-        "driveway-concreters",  # purposefully for SEO ranking
-        "cement-driveway-contractors",
-        "driveway-concrete-companies",
+    "concrete": [
+        "concrete-contractor",
+        "concrete-installation",
+        "concrete-services",
+        "licensed-concrete-contractor",
+        "concrete-contractor-quotes",
+        "concrete-contractor-prices",
+        "best-concrete",
     ],
-    "driveway-replacement": [
-        "driveway-replacement",
-        "replace-concrete-driveway",
-        "old-driveway-removal-and-replacement",
+    "stamped-concrete": [
+        "stamped-concrete-designs",
+        "stamped-concrete-patterns",
+        "stamped-concrete-colors",
+        "stamped-concrete-cost",
+        "stamped-concrete-maintenance",
+        "stamped-concrete-sealer",
+        "stamped-concrete-installation",
     ],
-    "broom-finish-driveway": [
-        "broom-finish-driveway",
-        "brushed-concrete-driveway",
-        "non-slip-concrete-driveway-finish",
-    ],
-    "stamped-concrete-driveway": [
-        "stamped-concrete-driveway",
-        "imprinted-concrete-driveway",
-        "decorative-driveway-concrete",
-    ],
-    "exposed-aggregate-driveway": [
-        "exposed-aggregate-driveway",
-        "aggregate-concrete-driveway",
-        "decorative-stone-driveway",
-    ],
-    "concrete-patio": [
-        "concrete-patio",
-        "patio-concrete-contractors",
-        "concrete-patio-companies",
-    ],
-    "stamped-concrete-patio": [
-        "stamped-concrete-patio",
-        "stamped-concrete-patios",
-        "concrete-stamping-for-patios",
-    ],
-    "exposed-aggregate-patio": [
-        "exposed-aggregate-patio",
-        "aggregate-concrete-patio",
-        "decorative-patio-concrete",
-    ],
-    "fire-pit-surround": [
-        "concrete-fire-pit-surround",
-        "patio-fire-pit-seating",
-        "seat-wall-fire-pit",
-    ],
-    "seat-wall-bench": [
-        "concrete-seat-wall",
-        "concrete-bench-seating",
-        "patio-seating-wall",
-    ],
-    "concrete-walkway": [
-        "concrete-walkway",
-        "concrete-walkway-contractors",
-        "concrete-sidewalk-walkway",
-    ],
-    "stamped-concrete-walkway": [
-        "stamped-concrete-walkway",
-        "decorative-concrete-walkway",
-        "imprinted-walkway-concrete",
-    ],
-    "exposed-aggregate-walkway": [
-        "exposed-aggregate-walkway",
-        "aggregate-concrete-path",
-        "decorative-stone-walkway",
-    ],
-    "sidewalk": [
-        "concrete-sidewalk",
-        "concrete-sidewalk-contractors",
-        "sidewalk-concrete-companies",
-    ],
-    "concrete-steps": [
-        "concrete-steps",
-        "porch-concrete-steps",
-        "front-porch-concrete",
-    ],
-    "retaining-wall": [
-        "retaining-wall-contractor",
-        "concrete-retaining-wall",
-        "retaining-wall-builders",
-        "retaining-wall-repair",
-    ],
-    "concrete-slab": [
-        "concrete-slab",
-        "concrete-garage-slab",
-        "concrete-house-slab",
-        "concrete-basement-slab",
+    "cement-driveway": [
+        "cement-driveway-builder",
+        "cement-driveway-installation",
+        "cement-driveway-resurfacing",
+        "cement-driveway-repair",
+        "cement-driveway-cost",
+        "cement-contractor-driveway",
+        "cement-driveway-estimate",
     ],
     "concrete-repair": [
-        "concrete-repair",
         "concrete-crack-repair",
-        "driveway-concrete-repair",
-        "sidewalk-concrete-repair",
-    ],
-    "concrete-resurfacing": [
+        "spalling-concrete-repair",
+        "concrete-slab-leveling",
         "concrete-resurfacing",
-        "concrete-overlay",
-        "resurfacing-concrete-patio",
-        "resurface-concrete-driveway",
+        "concrete-patching",
+        "concrete-repair-epoxy",
+        "concrete-repair-contractor",
     ],
-    "decorative-concrete": [
+    "porch-concrete": [
+        "concrete-porch-repair",
+        "concrete-porch-resurfacing",
+        "concrete-porch-steps",
+        "concrete-porch-ideas",
+        "concrete-porch-cost",
+        "concrete-porch-overlay",
+        "concrete-porch-railing-base",
+    ],
+    "retaining-wall-contractor": [
+        "retaining-wall-installation",
+        "retaining-wall-engineering",
+        "concrete-retaining-wall",
+        "block-retaining-wall",
+        "retaining-wall-cost",
+        "retaining-wall-design",
+        "retaining-wall-drainage",
+    ],
+    "stamped-concrete-patio": [
+        "stamped-patio-ideas",
+        "stamped-patio-cost",
+        "stamped-patio-colors",
+        "stamped-patio-patterns",
+        "stamped-patio-sealer",
+        "stamped-patio-installation",
+        "stamped-patio-maintenance",
+    ],
+    "concrete-driveway": [
+        "new-concrete-driveway",
+        "stamped-concrete-driveway",
+        "broom-finish-driveway",
+        "exposed-aggregate-driveway",
+        "decorative-concrete-driveway",
+        "high-end-concrete-driveway",
+        "concrete-driveway-control-joints",
+        "heated-concrete-driveway",
+        "concrete-driveway-curb-cut",
+    ],
+    "concrete-patio": [
+        "patio-concrete-installers",
+        "concrete-patio-builders",
+        "concrete-patio-resurfacing",
+        "concrete-patio-cost",
+        "concrete-patio-designs",
+        "concrete-patio-extensions",
+        "patio-concrete-finishes",
+    ],
+    "retaining-wall": [
+        "concrete-retaining-wall-builders",
+        "concrete-retaining-wall-replacement",
+        "tiered-retaining-walls",
+        "retaining-wall-permit",
+        "concrete-retaining-wall-foundation",
+        "concrete-retaining-wall-repair-services",
+        "concrete-retaining-wall-capstones",
+    ],
+    "stamped-concrete-patios": [
+        "stamped-patio-designs",
+        "stamped-patio-textures",
+        "stamped-patio-stains",
+        "stamped-patio-cleaning",
+        "stamped-patio-restoration",
+        "stamped-patio-joints",
+        "decorative-concrete-patios",
+    ],
+    "concrete-driveway-repair": [
+        "driveway-crack-filling",
+        "driveway-lifting-and-leveling",
+        "driveway-resurfacing",
+        "driveway-pothole-repair",
+        "driveway-edge-repair",
+        "driveway-joint-sealant",
+        "driveway-repair-contractor",
+    ],
+    "concrete-stamping": [
+        "decorative-concrete-stamping",
+        "concrete-stamp-mats",
+        "ashlar-slate-stamp",
+        "random-stone-stamp",
+        "wood-plank-stamped-concrete",
+        "concrete-release-agent",
+        "integral-color-concrete",
+    ],
+    "exposed-aggregate-concrete": [
+        "exposed-aggregate-finish",
+        "exposed-aggregate-sealer",
+        "exposed-aggregate-maintenance",
+        "exposed-aggregate-cost",
+        "exposed-aggregate-mix",
+        "seeded-aggregate-concrete",
+        "washed-aggregate-finish",
+    ],
+    "residential-concrete": [
+        "home-concrete-services",
+        "residential-foundation-concrete",
+        "residential-driveway-concrete",
+        "residential-patio-concrete",
+        "residential-concrete-steps",
+        "residential-concrete-repair",
+        "residential-concrete-estimates",
+    ],
+    "retaining-wall-repair": [
+        "leaning-retaining-wall-repair",
+        "retaining-wall-tiebacks",
+        "retaining-wall-reinforcement",
+        "retaining-wall-waterproofing",
+        "retaining-wall-drain-repair",
+        "retaining-wall-rebuild",
+        "retaining-wall-crack-repair",
+    ],
+    "concrete-patio": [
+        "stamped-concrete-patio",
+        "brushed-concrete-patio",
+        "concrete-patio-drainage",
+        "concrete-patio-cost",
+        "covered-concrete-patio",
+        "concrete-patio-firepit",
+        "concrete-patio-sealer",
+    ],
+    "retaining-wall-builders": [
+        "retaining-wall-construction",
+        "landscape-retaining-walls",
+        "concrete-block-walls",
+        "gravity-retaining-walls",
+        "segmental-retaining-walls",
+        "retaining-wall-geogrid",
+        "retaining-wall-footings",
+    ],
+    "concrete-driveway-companies": [
+        "driveway-paving-companies",
+        "driveway-installation-company",
+        "driveway-replacement-company",
+        "driveway-finishing-company",
+        "concrete-driveway-specialists",
+        "driveway-construction-company",
+        "driveway-concrete-firms",
+    ],
+    "concrete-patio-companies": [
+        "patio-installation-company",
+        "patio-resurfacing-company",
+        "decorative-concrete-company",
+        "patio-extension-company",
+        "patio-design-company",
+        "outdoor-living-concrete",
+        "hardscape-concrete-company",
+    ],
+    "concrete-walkway": [
+        "concrete-pathway",
+        "concrete-sidewalk-installers",
+        "concrete-walkway-design",
+        "concrete-walkway-repair",
+        "curb-and-gutter-concrete",
+        "concrete-garden-paths",
+        "accessible-concrete-walkways",
+    ],
+    "patio-concrete": [
+        "patio-foundation-concrete",
+        "patio-concrete-pour",
+        "patio-concrete-finishes",
+        "patio-concrete-drainage",
+        "patio-concrete-steps",
+        "patio-concrete-cost",
+        "patio-concrete-overlay",
+    ],
+    "stamped-concrete": [
         "decorative-concrete",
-        "stamped-concrete",
+        "pattern-stamped-concrete",
         "colored-concrete",
-        "concrete-stamping",
+        "stamped-concrete-installers",
+        "stamped-concrete-specialists",
+        "stamped-concrete-estimates",
+        "stamped-concrete-restoration",
     ],
-    # Broad catch-all for galleries or mixed shoots
-    "concrete-project": [
-        "concrete-contractor-residential",
-        "concrete-companies",
-        "local-concrete-contractors",
-        "concrete-installers",
-        "concrete-company",
+    "concrete-sidewalk": [
+        "sidewalk-concrete-installers",
+        "sidewalk-repair-contractor",
+        "ada-sidewalk-compliance",
+        "city-sidewalk-permit",
+        "sidewalk-trip-hazard-repair",
+        "curb-ramp-concrete",
+        "sidewalk-expansion-joints",
     ],
-    "unknown": [],
+    "concrete-steps-repair": [
+        "crumbling-concrete-steps",
+        "concrete-stair-repair",
+        "concrete-step-resurfacing",
+        "concrete-step-nosing-repair",
+        "handrail-base-repair",
+        "concrete-steps-patching",
+        "concrete-steps-leveling",
+    ],
+    "local-concrete": [
+        "trusted-concrete",
+        "top-rated-concrete",
+        "affordable-concrete",
+        "licensed-and-insured-concrete",
+        "concrete-contractor-reviews",
+        "concrete-contractor-neighborhoods",
+        "community-concrete-services",
+    ],
+    "concrete-slab": [
+        "garage-slab",
+        "shed-slab",
+        "house-slab-foundation",
+        "monolithic-slab-pour",
+        "concrete-slab-reinforcement",
+        "concrete-slab-leveling",
+        "slab-on-grade-contractor",
+    ],
+    "exposed-aggregate-driveway": [
+        "exposed-aggregate-driveway-cost",
+        "exposed-aggregate-driveway-sealer",
+        "exposed-aggregate-driveway-ideas",
+        "exposed-aggregate-driveway-maintenance",
+        "exposed-aggregate-borders",
+        "exposed-aggregate-concrete-driveway",
+        "decorative-aggregate-driveway",
+    ],
+    "exposed-aggregate-patio": [
+        "exposed-aggregate-patio-ideas",
+        "exposed-aggregate-patio-sealer",
+        "exposed-aggregate-patio-cost",
+        "exposed-aggregate-patio-maintenance",
+        "exposed-aggregate-patio-edges",
+        "exposed-aggregate-steps",
+        "exposed-aggregate-seeded-patio",
+    ],
+    "concrete-tacoma": [
+        "tacoma-concrete-company",
+        "tacoma-concrete-services",
+        "tacoma-concrete-driveways",
+        "tacoma-concrete-patios",
+        "tacoma-concrete-estimates",
+        "tacoma-concrete-repair",
+        "tacoma-residential-concrete",
+    ],
+    "stamped-concrete-tacoma": [
+        "tacoma-stamped-concrete-patterns",
+        "tacoma-stamped-concrete-cost",
+        "tacoma-stamped-patio",
+        "tacoma-decorative-concrete",
+        "tacoma-stamped-concrete-colors",
+        "tacoma-stamped-concrete-sealer",
+        "tacoma-stamped-concrete-installers",
+    ],
+    "concrete-driveway-tacoma": [
+        "tacoma-concrete-driveway",
+        "tacoma-driveway-replacement",
+        "tacoma-driveway-estimate",
+        "tacoma-driveway-repair",
+        "tacoma-driveway-concrete-company",
+        "tacoma-driveway",
+        "tacoma-driveway-finishes",
+    ],
+    "concrete-bellevue": [
+        "bellevue-concrete-company",
+        "bellevue-concrete-services",
+        "bellevue-concrete-driveways",
+        "bellevue-concrete-patios",
+        "bellevue-concrete-estimates",
+        "bellevue-concrete-repair",
+        "bellevue-residential-concrete",
+    ],
+    "stamped-concrete-bellevue": [
+        "bellevue-stamped-concrete-patterns",
+        "bellevue-stamped-concrete-cost",
+        "bellevue-stamped-patio",
+        "bellevue-decorative-concrete",
+        "bellevue-stamped-concrete-colors",
+        "bellevue-stamped-concrete-sealer",
+        "bellevue-stamped-concrete-installers",
+    ],
+    "concrete-driveway-bellevue": [
+        "bellevue-concrete-driveway",
+        "bellevue-driveway-replacement",
+        "bellevue-driveway-estimate",
+        "bellevue-driveway-repair",
+        "bellevue-driveway-concrete-company",
+        "bellevue-driveway",
+        "bellevue-driveway-finishes",
+    ],
+    "concrete-driveway-visualizer": [
+        "driveway-design-tool",
+        "driveway-simulator",
+        "driveway-mockup",
+        "driveway-before-and-after",
+        "concrete-driveway-planner",
+        "driveway-style-preview",
+        "driveway-render-tool",
+    ],
+    "concrete-patio-visualizer": [
+        "patio-design-tool",
+        "patio-simulator",
+        "patio-mockup",
+        "patio-before-and-after",
+        "concrete-patio-planner",
+        "patio-style-preview",
+        "patio-render-tool",
+    ],
+    "driveway-visualizer": [
+        "driveway-configurator",
+        "driveway-3d-preview",
+        "driveway-design-app",
+        "driveway-material-selector",
+        "driveway-layout-tool",
+        "driveway-color-visualizer",
+        "driveway-pattern-visualizer",
+    ],
+    "stamped-concrete-visualizer": [
+        "stamped-concrete-design-tool",
+        "stamped-concrete-simulator",
+        "stamped-concrete-pattern-preview",
+        "stamped-concrete-color-visualizer",
+        "stamped-concrete-render",
+        "decorative-concrete-visualizer",
+        "stamped-concrete-mockup",
+    ],
+    "exposed-aggregate-visualizer": [
+        "aggregate-finish-visualizer",
+        "exposed-aggregate-preview",
+        "exposed-aggregate-design-tool",
+        "aggregate-color-visualizer",
+        "aggregate-texture-visualizer",
+        "exposed-aggregate-simulator",
+        "aggregate-mockup",
+    ],
+    "patio-visualizer": [
+        "outdoor-patio-visualizer",
+        "patio-layout-tool",
+        "patio-surface-preview",
+        "patio-texture-visualizer",
+        "patio-color-visualizer",
+        "patio-design-app",
+        "patio-render-preview",
+    ],
 }
+
 
 # Filename format examples:
 # Specific primary (no surface): stamped-concrete-driveway-bellevue-rc-concrete-01.jpg
@@ -327,24 +581,80 @@ SEMANTIC_KEYWORDS = {
 MESSAGES = [
     {
         "role": "system",
-        "content": "You are an image classifier for concrete construction photos. Output STRICT JSON, UTF-8, no prose.Return only fields: id, label, confidence, descriptor. If uncertain, return label 'unknown' and confidence <= 0.5.",
+        "content": (
+            "You are an expert concrete construction photo classifier for a professional concrete contractor. "
+            "Your role is to accurately identify and categorize concrete construction project photos for SEO optimization and project organization.\n\n"
+            "CRITICAL REQUIREMENTS:\n"
+            "- Output STRICT JSON only, UTF-8 encoding, no prose or explanations\n"
+            "- Return ONLY the requested fields: id, label, confidence, descriptor\n"
+            "- Focus on the PRIMARY concrete element visible in the photo\n"
+            "- Consider the project TYPE and concrete FINISH when classifying\n\n"
+            "CONFIDENCE GUIDELINES:\n"
+            "- Take into account the lighting, weather conditions, specific concrete finish and context of the photo\n"
+            "- High confidence (0.85-1.0): Clear view, unmistakable identification\n"
+            "- Medium confidence (0.65-0.84): Likely correct, some ambiguity\n"
+            "- Low confidence (<0.65): Uncertain, use 'unknown' label\n\n"
+            "IMPORTANT DISTINCTIONS:\n"
+            "- DRIVEWAYS: Vehicle access, typically residential or commercial parking areas\n"
+            "- PATIOS: Outdoor living spaces, entertainment areas, adjacent to homes\n"
+            "- WALKWAYS: Pedestrian paths connecting areas, narrower than driveways, sometimes called pathways/paths\n"
+            "- SIDEWALKS: Public or property-edge pedestrian paths, typically along streets\n"
+            "- STEPS: Elevation changes, staircases, porch steps\n"
+            "- SLABS: Large flat surfaces (garage floors, shed foundations, house slabs)\n\n"
+            "FINISH TYPES:\n"
+            "- STAMPED: Textured patterns (stone, brick, wood grain impressions)\n"
+            "- EXPOSED AGGREGATE: Visible decorative stones/pebbles in surface\n"
+            "- BROOM FINISH: Textured with broom strokes for traction (common on driveways)\n"
+            "- SMOOTH/TROWELED: Plain finished surface\n\n"
+            "CLASSIFICATION PRIORITY:\n"
+            "1. If stamped pattern visible → use 'stamped-concrete-[type]'\n"
+            "2. If exposed aggregate visible → use 'exposed-aggregate-[type]'\n"
+            "3. If broom finish visible → use 'broom-finish-[type]'\n"
+            "4. Otherwise → use standard 'concrete-[type]'\n"
+            "5. For repairs/resurfacing → look for patches, cracks, overlays\n\n"
+            "When uncertain or photo shows multiple elements, choose the MOST PROMINENT or PRIMARY element."
+        ),
     },
     {
         "role": "user",
         "content": (
-            "Allowed labels (exact strings): "
+            "TASK: Classify each concrete construction photo using ONLY the allowed labels below.\n\n"
+            "ALLOWED LABELS (use exact strings, replace spaces with hyphens):\n"
             + ", ".join([label.replace("-", " ") for label in LABELS])
-            + ".\n"
-            "Output must be a STRICT JSON array, UTF-8, no prose, no code fences.\n"
-            "Return one object per input image with fields: id, label, confidence, descriptor.\n"
-            "Rules:\n"
-            "- id: the exact filename we sent you for that image.\n"
-            '- label: one of the allowed labels, or "unknown" if unsure.\n'
-            "- confidence: a float between 0 and 1.\n"
-            '- descriptor: max 6 words, concrete-specific detail (e.g., "broom finish", "saw-cut pattern").\n'
-            'Abstain when unsure: if your confidence would be below 0.65, set label to "unknown" and confidence <= 0.5.\n'
-            "Do not include city, filenames to use, synonyms, or any extra fields beyond id, label, confidence, descriptor.\n"
-            "Return only the JSON array."
+            + "\n\n"
+            "OUTPUT FORMAT:\n"
+            "Return a JSON array with one object per image:\n"
+            "[\n"
+            '  {"id": "exact_filename.jpg", "label": "concrete-driveway", "confidence": 0.92, "descriptor": "broom finish residential"},\n'
+            '  {"id": "another_file.jpg", "label": "stamped-concrete-patio", "confidence": 0.88, "descriptor": "stone pattern entertainment area"}\n'
+            "]\n\n"
+            "FIELD REQUIREMENTS:\n"
+            "- id: EXACT filename from the image (critical for mapping)\n"
+            "- label: ONE of the allowed labels above, or 'unknown' if uncertain\n"
+            "- confidence: Float between 0.0 and 1.0 (be honest about uncertainty)\n"
+            "- descriptor: MAX 6 words describing concrete-specific details\n"
+            "  Examples: 'broom finish driveway', 'decorative stamped stone pattern', 'aggregate exposed patio surface'\n\n"
+            "CLASSIFICATION EXAMPLES:\n"
+            "- Residential driveway with broom texture → 'broom-finish-driveway' (confidence: 0.90+)\n"
+            "- Patio with stone-like stamped pattern → 'stamped-concrete-patio' (confidence: 0.85+)\n"
+            "- Walkway with exposed stones/pebbles → 'exposed-aggregate-walkway' (confidence: 0.85+)\n"
+            "- Front porch steps → 'concrete-steps' (confidence: 0.90+)\n"
+            "- Driveway replacement in progress → 'driveway-replacement' (confidence: 0.80+)\n"
+            "- Cracked concrete being repaired → 'concrete-repair' (confidence: 0.80+)\n"
+            "- Garage floor slab → 'concrete-slab' (confidence: 0.85+)\n"
+            "- Block wall for yard leveling → 'retaining-wall' (confidence: 0.90+)\n\n"
+            "STRICT RULES:\n"
+            "1. If confidence would be below 0.65 → use label 'unknown' and set confidence ≤ 0.5\n"
+            "2. Do NOT include: city names, location info, suggested filenames, synonyms\n"
+            "3. Do NOT add extra fields beyond: id, label, confidence, descriptor\n"
+            "4. Do NOT include code fences, markdown, or explanatory text\n"
+            "5. Return ONLY the raw JSON array\n\n"
+            "ANALYZE EACH IMAGE CAREFULLY:\n"
+            "- What is the PRIMARY concrete element? (driveway, patio, walkway, etc.)\n"
+            "- What FINISH is visible? (stamped, exposed aggregate, broom, smooth)\n"
+            "- What is the PROJECT TYPE? (new construction, repair, replacement, decorative)\n"
+            "- How CONFIDENT are you in this classification? (be conservative)\n\n"
+            "Begin classification now:"
         ),
     },
 ]

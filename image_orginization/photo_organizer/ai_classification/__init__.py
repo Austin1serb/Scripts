@@ -4,16 +4,16 @@ from .openai_classifier import (
     classify_batches,
     classify_cluster_examples,
     classify_singleton,
-    assign_singletons_batched,
-    classify_clusters_with_collage,
-    assign_singletons_with_collage,
+    match_uncertain_items_with_collage,
+    separate_confident_uncertain_clusters,
+    apply_matches_to_groups,
 )
 
 __all__ = [
     "classify_batches",
     "classify_cluster_examples",
     "classify_singleton",
-    "assign_singletons_batched",
-    "classify_clusters_with_collage",
-    "assign_singletons_with_collage",
+    "match_uncertain_items_with_collage",
+    "separate_confident_uncertain_clusters",
+    "apply_matches_to_groups",
 ]

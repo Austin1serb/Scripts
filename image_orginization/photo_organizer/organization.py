@@ -51,21 +51,13 @@ def organize(
     rotate_cities: bool,
     use_semantic_keywords: bool = USE_SEMANTIC_KEYWORDS,
 ):
-    """Organize photos into folders with SEO-friendly filenames.
-
-    Creates folder structure: {label}-{city}/
-    Creates filenames: {keyword}[-{surface}]-{city}-{brand}-{index}.jpg
-
-    Args:
-        groups: List of photo clusters
-        labels: Dictionary mapping item IDs to classification results
-        out_dir: Output directory for organized photos
-        brand: Brand name for filenames
-        rotate_cities: Whether to rotate cities for photos without GPS
-        use_semantic_keywords: Whether to rotate through semantic keyword variants
-
-    This format is optimized for SEO with keyword-first naming.
-    When use_semantic_keywords=True, cycles through related terms for broad coverage.
+    """
+    Gets the cluster label from AI classification
+    Loads semantic variants from SEMANTIC_KEYWORDS config
+    Loops through each photo in the cluster
+    Rotates through semantic variants: variant_idx = (idx - 1) % len(semantic_variants)
+    Builds filename: {keyword}[-{surface}]-{city}-{brand}-{index}.jpg
+    Copies files and creates manifest
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     cycle = list(CITIES.keys())

@@ -22,7 +22,7 @@ from ..config import (
     FILENAME_STRONG_THRESHOLD,
 )
 from ..models import Item, NameFeat
-from ..utils.filename import filename_score, lcp_len
+from ..utils.filename import filename_score
 from .temporal import phash_score, time_score
 
 

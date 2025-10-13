@@ -113,18 +113,15 @@ def filename_score(a: NameFeat, b: NameFeat) -> float:
             # Sequential filenames are STRONGEST signal (per user validation)
             # IMG_55, IMG_56, IMG_57 almost always = same burst/project
             if number_gap == 0:
-                score += 0.95  # Identical number = exact match
+                score += 1.0  # Identical number = exact match
             elif number_gap == 1:
-                score += 0.90  # Adjacent (almost certainly same burst)
+                score += 1.0  # Adjacent (almost certainly same burst)
+            elif number_gap <= 2:
+                score += 0.5  # Very close sequence (very likely same project)
             elif number_gap <= 3:
-                score += 0.80  # Very close sequence (very likely same project)
-            elif number_gap <= 10:
-                score += 0.40  # Close sequence (likely related)
-            elif number_gap <= 30:
-                score += 0.10  # Moderate gap (possibly related)
-            elif number_gap <= 50:
-                score += 0.00  # Weak relation
-            # >50 gap: 0.0 (likely different project/time)
+                score += 0.45  # Close sequence (likely related)
+            elif number_gap <= 4:
+                score += 0  # Close sequence (likely related)
 
         # No prefix or different prefix - reduced weight
         else:
@@ -132,7 +129,7 @@ def filename_score(a: NameFeat, b: NameFeat) -> float:
                 score += 0.5
             elif number_gap <= 3:
                 score += 0.2
-            elif number_gap <= 10:
+            elif number_gap <= 5:
                 score += 0.05
 
     # COMPONENT 2: String similarity (fallback/enhancement signal)
