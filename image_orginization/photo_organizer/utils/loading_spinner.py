@@ -11,6 +11,16 @@ class Spinner:
         self.running = False
         self.thread = None
 
+    def __enter__(self):
+        """Support 'with' statement."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Support 'with' statement."""
+        self.stop()
+        return False
+
     def start(self):
         self.running = True
         self.thread = threading.Thread(target=self._spin)

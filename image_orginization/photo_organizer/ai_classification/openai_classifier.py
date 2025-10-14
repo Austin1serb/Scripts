@@ -384,18 +384,22 @@ def match_uncertain_items_with_collage(
 
     # Create collage of all confident clusters (one-time operation)
     print("\n📸 Creating collage of confident clusters...")
-    confident_cluster_ids = [cid for cid, _ in confident_clusters]
-    confident_examples = {
-        cid: get_best_example(items) for cid, items in confident_clusters
-    }
+
+    # Extract just the items (not cluster IDs) for collage
+    confident_groups = [items for _, items in confident_clusters]
+
+    # Build labels dict mapping item IDs to labels
+    labels_for_collage = {}
+    for cluster_id, items in confident_clusters:
+        if items and cluster_id in cluster_labels:
+            # Map first item's ID to the cluster label
+            labels_for_collage[items[0].id] = cluster_labels[cluster_id]
 
     collage_path = Path(tempfile.gettempdir()) / "confident_clusters_collage.jpg"
     create_cluster_collage(
-        clusters=confident_clusters,
-        cluster_labels=cluster_labels,
+        clusters=confident_groups,
+        labels=labels_for_collage,
         output_path=collage_path,
-        include_labels=True,
-        include_cluster_ids=True,
     )
 
     # Encode collage once
@@ -415,14 +419,41 @@ def match_uncertain_items_with_collage(
             f"\n  🔎 Matching {item_type} #{uncertain_id}: {uncertain_example.thumb.name}"
         )
 
-        # Build prompt
+        # Build prompt with detailed concrete-specific matching rules
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are comparing an uncertain photo/cluster against known confident clusters. "
-                    "Determine if the uncertain item belongs to any of the confident clusters based on "
-                    "visual similarity, location features, materials, and context."
+                    "You are an expert at matching concrete-construction photos to project clusters. "
+                    "Your task is to determine if an uncertain photo belongs to any of the confident clusters shown in a labeled collage.\n\n"
+                    "MATCHING CRITERIA (apply in priority order):\n"
+                    "1. PHYSICAL LOCATION: Same property/project site (check backgrounds, structures, landscaping, fencing)\n"
+                    "2. CONCRETE TYPE: Same element type (driveway vs patio vs walkway vs steps vs slab)\n"
+                    "3. FINISH PATTERN: Same finish (stamped pattern, exposed aggregate, broom, smooth)\n"
+                    "4. CONSTRUCTION PHASE: Same work stage (demo, formwork, pour, finishing, cured)\n"
+                    "5. VISUAL FEATURES: Same distinctive features (cracks, stains, borders, joints, apron shape)\n\n"
+                    "STRONG MATCH SIGNALS (0.80-1.00 confidence):\n"
+                    "- Identical stamped pattern (wood plank, ashlar, flagstone, cobblestone)\n"
+                    "- Same background structures (house facade, garage door, fence, deck)\n"
+                    "- Same landscaping (trees, garden borders, planters visible in both)\n"
+                    "- Same distinctive repairs (crack patterns, color-mismatched patches)\n"
+                    "- Same curb cut or apron shape\n\n"
+                    "MEDIUM MATCH SIGNALS (0.60-0.79 confidence):\n"
+                    "- Similar concrete type and finish, but background partially occluded\n"
+                    "- Same general construction phase and materials\n"
+                    "- Similar weather/lighting conditions and time period\n\n"
+                    "WEAK/NO MATCH (<0.60 confidence → return -1):\n"
+                    "- Different concrete types (driveway photo vs patio cluster)\n"
+                    "- Different finish patterns (stamped vs broom-finish)\n"
+                    "- Clearly different locations (different house colors, fencing, landscaping)\n"
+                    "- Different construction phases (new pour vs fully cured with sealant)\n"
+                    "- When in doubt, return -1 (it's better to create a new cluster than merge incorrectly)\n\n"
+                    "STRICT RULES:\n"
+                    "- Only match if you're 60%+ confident it's the SAME physical location AND same concrete element\n"
+                    "- Location similarity alone isn't enough; the concrete type/finish must also match\n"
+                    "- Never match based solely on label similarity (a driveway photo shouldn't match just because both are driveways)\n"
+                    "- If the uncertain item shows a clearly different project or element type, return cluster_id: -1\n"
+                    "- Provide a specific, evidence-based reason (e.g., 'same stamped flagstone pattern and garage door' or 'different locations: fencing style doesn't match')"
                 ),
             },
             {
@@ -431,15 +462,19 @@ def match_uncertain_items_with_collage(
                     {
                         "type": "text",
                         "text": (
-                            f"CONFIDENT CLUSTERS (labeled collage):\n"
-                            f"This collage shows {len(confident_clusters)} confident clusters with their labels.\n\n"
-                            f"UNCERTAIN ITEM:\n"
-                            f"Below is an uncertain item (ID: {uncertain_id}) that needs matching.\n\n"
-                            f"Does this uncertain item belong to any of the confident clusters in the collage?\n"
-                            f"Consider: same physical location, same materials, same surroundings, distinct features.\n\n"
-                            f"If it matches, return the cluster_id and confidence (0.0-1.0).\n"
-                            f"If no match, return cluster_id: -1 and confidence: 0.0.\n"
-                            f"Provide a brief reason for your decision."
+                            f"TASK: Match uncertain item to a confident cluster (or mark as no-match)\n\n"
+                            f"CONFIDENT CLUSTERS COLLAGE:\n"
+                            f"The first image shows {len(confident_clusters)} confident clusters arranged in a grid.\n"
+                            f"Each cluster is labeled with its classification and cluster_id.\n\n"
+                            f"UNCERTAIN ITEM (ID: {uncertain_id}):\n"
+                            f"The second image shows the uncertain item that needs matching.\n\n"
+                            f"DECISION:\n"
+                            f"Does this uncertain item belong to any cluster in the collage based on location, concrete type, finish, and visual features?\n\n"
+                            f"OUTPUT:\n"
+                            f"- cluster_id: the ID of the matching cluster, or -1 if no good match\n"
+                            f"- confidence: 0.0-1.0 (must be ≥0.60 to match, otherwise return -1)\n"
+                            f"- reason: specific evidence for your decision (e.g., 'same stamped wood-plank pattern and garage' or 'different location: no matching structures')\n\n"
+                            f"REMEMBER: When uncertain, return -1. False negatives (new cluster) are better than false positives (wrong merge)."
                         ),
                     },
                     {
@@ -463,13 +498,22 @@ def match_uncertain_items_with_collage(
                     client=client,
                     model=model,
                     messages=messages,
-                    response_format=get_uncertain_match_schema(),
+                    schema=get_uncertain_match_schema(),
                 )
 
             result = json.loads(response.choices[0].message.content)
             cluster_id = result.get("cluster_id", -1)
             confidence = result.get("confidence", 0.0)
             reason = result.get("reason", "")
+
+            # Enforce minimum confidence threshold - be conservative to avoid wrong merges
+            from ..config import MIN_MATCH_CONFIDENCE
+
+            if cluster_id != -1 and confidence < MIN_MATCH_CONFIDENCE:
+                print(
+                    f"    ⚠️  Low confidence ({confidence:.0%}) - rejecting match to cluster #{cluster_id}"
+                )
+                cluster_id = -1  # Reject match, keep as separate cluster
 
             assignments[uncertain_id] = cluster_id
 

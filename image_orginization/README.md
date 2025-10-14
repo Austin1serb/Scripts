@@ -30,6 +30,29 @@ python -m photo_organizer.cli run \
   --brand "your-brand-name"
 ```
 
+### Name-Only Mode (Simplest AI Mode)
+
+```bash
+python main.py run \
+  --input "/path/to/photos" \
+  --output "/path/to/organized" \
+  --brand "bespoke-concrete" \
+  --name-only \
+  --model gpt-4o
+```
+
+**How it works:**
+- Takes existing clusters as-is (no AI sorting/matching)
+- Groups small clusters (1-2 images) into city-based misc folders
+- Creates collages for each cluster (50 images max per collage)
+- Uses AI to name each cluster based on the collage
+- Organizes original photos into folders by AI-generated names
+
+**When to use:**
+- You want AI naming without AI re-clustering
+- You trust the clustering step (GPS + time + filename + hash)
+- You want maximum simplicity and control
+
 ### With Classification
 
 ```bash
@@ -42,7 +65,7 @@ python main.py run \
   --model gpt-4o
 ```
 
-### With Unified Matching (Recommended)
+### With Unified Matching (Advanced)
 
 ```bash
 python main.py run \

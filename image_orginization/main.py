@@ -31,14 +31,15 @@ from photo_organizer.cli import main
 DEFAULT_ARGS = f"""
 run
 --input '{IMAGE_DIR}'
+--name-only
 --output '{(SCRIPT_DIR / 'organized').as_posix()}'
 """.strip()
 
 # Override defaults from config.py by uncommenting:
 
 
-DEFAULT_ARGS += " --classify"  # Enable AI ai_classification
-DEFAULT_ARGS += " --assign-singletons"  # Enable unified matching for uncertain items
+# DEFAULT_ARGS += " --classify"  # Enable AI ai_classification
+# DEFAULT_ARGS += " --assign-singletons"  # Enable unified matching for uncertain items
 DEFAULT_ARGS += " --brand 'RC Concrete'"  # Set brand name
 
 

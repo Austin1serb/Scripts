@@ -42,6 +42,7 @@ from .config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_ROTATE_CITIES,
     DEFAULT_DRY_RUN,
+    DEFAULT_MODE_NAME_ONLY,
     DEFAULT_AI_CLASSIFY,
     DEFAULT_ASSIGN_SINGLETONS,
     USE_SEMANTIC_KEYWORDS,
@@ -114,6 +115,18 @@ def main():
         default=DEFAULT_ASSIGN_SINGLETONS,
         help="Use AI to match singleton clusters to existing multi-photo clusters",
     )
+    ap.add_argument(
+        "--no-assign-singletons",
+        action="store_false",
+        dest="assign_singletons",
+        help="Skip AI matching - just classify and name existing clusters as-is",
+    )
+    ap.add_argument(
+        "--name-only",
+        action="store_true",
+        default=DEFAULT_MODE_NAME_ONLY,
+        help="Name-only mode: SEO-optimized AI naming for every image (most efficient)",
+    )
     ap.add_argument("--model", default=DEFAULT_MODEL, help="OpenAI vision model")
     ap.add_argument(
         "--batch-size",
@@ -170,7 +183,13 @@ def main():
     input_dir = Path(args.input).expanduser()
     out_dir = Path(args.output).expanduser()
     work_dir = out_dir / "_work"
-    organized_dir = out_dir / "organized_photos"  # Separate folder for final output
+
+    # Choose output folder based on mode
+    if args.name_only:
+        organized_dir = out_dir / "name-only-photos"
+    else:
+        organized_dir = out_dir / "organized_photos"
+
     work_dir.mkdir(parents=True, exist_ok=True)
     organized_dir.mkdir(parents=True, exist_ok=True)
 
@@ -282,11 +301,24 @@ def main():
     for group in th_groups:
         # Determine strategy based on cluster characteristics
         has_datetime_count = sum(1 for item in group if item.dt is not None)
+
+        # Check filename similarity within cluster
+        from .utils.filename import filename_score
+
+        if len(group) >= 2:
+            # Sample pairs to check filename similarity
+            name_feat_a = name_map[group[0].id]
+            name_feat_b = name_map[group[1].id]
+            filename_sim = filename_score(name_feat_a, name_feat_b)
+        else:
+            filename_sim = 0.0
+
+        # Determine strategy based on available signals
         if has_datetime_count >= len(group) / 2:
             strategy = "time+filename+hash"
+        elif filename_sim > 0.7:  # FILENAME_STRONG_THRESHOLD
+            strategy = "filename+hash"
         else:
-            # Check if filename similarity was strong
-            # For now, default to hash_only for non-GPS, non-time clusters
             strategy = "hash_only"
 
         for item in group:
@@ -297,14 +329,27 @@ def main():
 
     # 3) Classification (OPTIMIZED: classify only cluster examples)
     print("\n" + "=" * 60)
-    print("STEP 3: CLASSIFICATION (Unified Matching)")
+    print("STEP 3: CLASSIFICATION")
     print("=" * 60)
 
-    labels: Dict[str, Dict] = {
-        i.id: {"label": "unknown", "confidence": 0.0, "descriptor": ""} for i in items
-    }
+    labels: Dict[str, Dict] = {}
 
-    if args.classify:
+    # NAME-ONLY MODE: Simple collage-based naming
+    if args.name_only:
+        print("🎨 Using NAME-ONLY mode (collage-based naming, no sorting/matching)")
+        from .name_only import name_only_mode
+
+        # Create collages in the name-only output directory
+        name_only_work_dir = organized_dir / "_collages"
+
+        labels = name_only_mode(
+            groups=groups,
+            output_dir=name_only_work_dir,
+            model=args.model,
+            max_images_per_collage=50,
+        )
+
+    elif args.classify:
         from .config import (
             ENABLE_UNIFIED_MATCHING,
             CONFIDENT_STRATEGIES,
@@ -394,8 +439,10 @@ def main():
             print(f"\n💰 Total Cost Savings: {savings_pct:.0f}% fewer API requests!")
 
         else:
-            # ORIGINAL FLOW: No unified matching, just classify all clusters
-            print(f"🖼️  Classifying all {len(groups)} clusters...")
+            # SIMPLE MODE: No unified matching, just classify and name existing clusters as-is
+            print(
+                f"\n📝 Simple mode: Classifying {len(groups)} existing clusters (no re-clustering)..."
+            )
             labels = classify_cluster_examples(groups, args.batch_size, args.model)
 
             total_images = sum(len(g) for g in groups)
@@ -409,7 +456,36 @@ def main():
         with open(work_dir / "labels.json", "w", encoding="utf-8") as f:
             json.dump(labels, f, indent=2)
     else:
-        print("Classification disabled, using 'unknown' labels.")
+        print("Classification disabled, using fallback cluster-based labels...")
+        # Generate unique labels for each cluster based on strategy
+        cluster_num = 1
+        for group in groups:
+            if not group:
+                continue
+
+            # Determine cluster label based on strategy
+            first_item = group[0]
+            strategy = getattr(first_item, "strategy", "unknown")
+
+            # Generate a descriptive label for the cluster
+            if strategy == "gps_location":
+                label = f"cluster-gps-{cluster_num}"
+            elif strategy == "time+filename+hash":
+                label = f"cluster-time-{cluster_num}"
+            elif strategy == "filename+hash":
+                label = f"cluster-filename-{cluster_num}"
+            else:
+                label = f"cluster-{cluster_num}"
+
+            # Assign this label to all items in the cluster
+            for item in group:
+                labels[item.id] = {"label": label, "confidence": 0.0, "descriptor": ""}
+
+            cluster_num += 1
+
+        print(f"  Generated {cluster_num - 1} unique cluster labels")
+        with open(work_dir / "labels.json", "w", encoding="utf-8") as f:
+            json.dump(labels, f, indent=2)
 
     # Write cluster summary with full file lists and thumbnail paths
     # AFTER classification, when groups are finalized
@@ -473,14 +549,26 @@ def main():
     print("=" * 60)
 
     if not args.dry_run:
-        organize(
-            groups,
-            labels,
-            organized_dir,  # Use separate organized_photos directory
-            args.brand,
-            args.rotate_cities,
-            args.use_semantic_keywords,
-        )
+        # Use different organization function for name-only mode
+        if args.name_only:
+            from .organization_name_only import organize_name_only
+
+            organize_name_only(
+                groups,
+                labels,
+                organized_dir,
+                args.brand,
+                args.rotate_cities,
+            )
+        else:
+            organize(
+                groups,
+                labels,
+                organized_dir,  # Use separate organized_photos directory
+                args.brand,
+                args.rotate_cities,
+                args.use_semantic_keywords,
+            )
     else:
         print("Dry run complete. See _work folder for JSON outputs.")
 

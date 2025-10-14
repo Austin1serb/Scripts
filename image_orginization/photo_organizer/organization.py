@@ -64,7 +64,19 @@ def organize(
 
     manifest = []
 
-    for gi, grp in enumerate(groups, start=1):
+    # Separate multi-image clusters from singletons
+    multi_clusters = [grp for grp in groups if len(grp) > 1]
+    singleton_clusters = [grp for grp in groups if len(grp) == 1]
+
+    print(
+        f"\n📁 Organizing {len(multi_clusters)} multi-image clusters into individual folders..."
+    )
+    print(
+        f"📁 Grouping {len(singleton_clusters)} singletons into misc folders by city..."
+    )
+
+    # Process multi-image clusters (each gets its own folder)
+    for gi, grp in enumerate(multi_clusters, start=1):
         # Get classification label (majority vote)
         votes: Dict[str, int] = {}
         for it in grp:
@@ -182,9 +194,94 @@ def organize(
                 }
             )
 
+    # Process singletons - group by city into misc folders
+    if singleton_clusters:
+        # Group singletons by city
+        singletons_by_city: Dict[str, List[Item]] = {}
+        for grp in singleton_clusters:
+            it = grp[0]  # Only one item per singleton cluster
+            gps_any = it.gps
+            city = nearest_city(gps_any, cycle if rotate_cities else CITIES, 0)
+            if city not in singletons_by_city:
+                singletons_by_city[city] = []
+            singletons_by_city[city].append(it)
+
+        # Create one misc folder per city
+        for city, items in singletons_by_city.items():
+            folder_name = f"misc-concrete-{slugify(city, lowercase=True)}"
+            folder = out_dir / folder_name
+            folder.mkdir(parents=True, exist_ok=True)
+
+            print(f"  📦 Grouping {len(items)} singletons in {folder_name}/")
+
+            # Process each singleton
+            for idx, it in enumerate(items, start=1):
+                # Get classification label for SEO filename
+                label = labels.get(it.id, {}).get("label", "unknown")
+                descriptor = labels.get(it.id, {}).get("descriptor", "")
+
+                # Get semantic keyword variants (if enabled)
+                if use_semantic_keywords:
+                    semantic_variants = SEMANTIC_KEYWORDS.get(label, [label])
+                    if not semantic_variants:
+                        semantic_variants = [label]
+                else:
+                    semantic_variants = [label]
+
+                # Rotate through semantic variants
+                variant_idx = (idx - 1) % len(semantic_variants)
+                current_keyword = semantic_variants[variant_idx]
+
+                # Build filename: {keyword}-{city}-{brand}-{index}
+                parts = []
+                parts.append(slugify(current_keyword, lowercase=True))
+                parts.append(slugify(city, lowercase=True))
+
+                if brand:
+                    parts.append(slugify(brand, lowercase=True))
+
+                parts.append(f"{idx:02d}")
+
+                base = "-".join(parts)
+                ext = it.path.suffix.lower()
+
+                # Convert HEIC/HEIF to JPG extension
+                if ext in {".heic", ".heif"}:
+                    ext = ".jpg"
+
+                dst = folder / f"{base}{ext}"
+
+                try:
+                    shutil.copy2(it.path, dst)
+                except Exception as e:
+                    print(f"[warn] copy failed {it.path.name}: {e}")
+                    continue
+
+                manifest.append(
+                    {
+                        "src": str(it.path),
+                        "dst": str(dst),
+                        "cluster": "singleton",
+                        "label": label,
+                        "semantic_keyword": current_keyword,
+                        "city": city,
+                        "index": idx,
+                    }
+                )
+
     # Write manifest
     with open(out_dir / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
 
-    print(f"✅ Organized {len(manifest)} files into {len(groups)} folders")
+    total_folders = (
+        len(multi_clusters) + len(singletons_by_city)
+        if singleton_clusters
+        else len(multi_clusters)
+    )
+    print(f"\n✅ Organized {len(manifest)} files into {total_folders} folders")
+    print(f"   - {len(multi_clusters)} multi-image project folders")
+    if singleton_clusters:
+        print(
+            f"   - {len(singletons_by_city)} misc-concrete-{{city}} folders with {len(singleton_clusters)} singletons"
+        )
     print(f"📄 Manifest: {out_dir/'manifest.json'}")

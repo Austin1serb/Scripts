@@ -2,134 +2,96 @@
 
 from pathlib import Path
 
-# =============================================================================
-# PATHS & DIRECTORIES
-# =============================================================================
+#
+# 🎯 MAIN EXECUTION MODES
+#
+# Choose ONE primary mode (set only ONE to True):
+
+DEFAULT_MODE_NAME_ONLY = False  # SEO-optimized AI naming (most efficient)
+DEFAULT_AI_CLASSIFY = True  # Standard AI classification (balanced)
+DEFAULT_ASSIGN_SINGLETONS = False  # Advanced mode with AI matching (experimental)
+
+# Mode descriptions:
+# - NAME_ONLY: Flattens all images, creates collages, AI names each uniquely
+# Output: Every image gets unique SEO filename
+# Cost: ~$0.06 for 562 images (12 API calls)
+# Use: When you want SEO names and trust clustering
+#
+# - AI_CLASSIFY: Standard classification by cluster
+# Output: Images grouped by type with semantic variations
+# Cost: ~$1.44 for 562 images (287 API calls)
+# Use: Default recommended mode
+#
+# - ASSIGN_SINGLETONS: Advanced matching of uncertain items
+# Output: Merges singletons into confident clusters
+# Cost: Higher (classification + matching)
+# Use: When you have many singletons to consolidate
+
+#
+# 📁 PATHS & DIRECTORIES
+#
 IMAGE_DIR = "/Users/austinserb/Desktop/RC Photos"
-# IMAGE_DIR = "/Users/austinserb/Desktop/serbyte/Scripts/image_orginization/"
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = str(SCRIPT_DIR / "organized")
-# =============================================================================
-# EXECUTION
-# =============================================================================
+
+#
+# 🏢 BRANDING & LOCATION
+#
 DEFAULT_BRAND = "RC Concrete"
-DEFAULT_ROTATE_CITIES = True
-DEFAULT_DRY_RUN = False
+DEFAULT_WORK_TYPE = "residential concrete"
+DEFAULT_ROTATE_CITIES = True  # Rotate city names if no GPS data
 
-# SEO Optimization
-USE_SEMANTIC_KEYWORDS = True  # Enable semantic keyword rotation for filenames
-# =============================================================================
-# CLUSTERING
-# =============================================================================
-DEFAULT_SITE_DISTANCE_FEET = 900.0  # GPS Clustering (in feet)
-DEFAULT_TIME_GAP_MINUTES = 180  # Max time gap photo in same cluster
-
-# sweet spot 14-16
-DEFAULT_HASH_THRESHOLD = (
-    14  # Max perceptual hash distance (0-64) (used for fused clustering)
-)
-DEFAULT_FUSE_THRESHOLD = 0.5  # Min similarity score (0.0-1.0)
-DEFAULT_MAX_EDGES = 32  # Max connections per photo
-
-# ? AI Classification
-DEFAULT_AI_CLASSIFY = False
-DEFAULT_MODEL = "gpt-4.1-mini"
-DEFAULT_BATCH_SIZE = 12  # Images per API call
-THUMBNAIL_SIZE = 512  # Thumbnail Size
-
-# ? AI Rate Limiting
-API_RATE_LIMIT_DELAY = 1.0  # Seconds to wait between API calls (0 = no delay)
-MAX_RETRIES = 3  # Max retries for failed API calls
-RETRY_DELAY = 5.0  # Seconds to wait before retrying after rate limit error
-
-# ? AI Unified Matching (Singletons + hash_only Clusters)
-DEFAULT_ASSIGN_SINGLETONS = True  # Enable unified matching for uncertain items
-MAX_SINGLETONS_TO_ASSIGN = 199  # Max uncertain items to process (cost control)
-
-# Unified matching treats singletons and hash_only clusters identically:
-# both are "uncertain" items that need validation against confident clusters
-ENABLE_UNIFIED_MATCHING = True  # Use unified matching (simpler than cascading)
-
-CONFIDENT_STRATEGIES = [
-    "gps_location",  # GPS-based clusters (high confidence)
-    "time+filename+hash",  # Time + filename + visual match
-    "filename+hash",  # Filename + visual match (medium-high confidence)
-]
-
-UNCERTAIN_STRATEGIES = [
-    "hash_only",  # Visual similarity only (needs validation)
-]
-# Note: Singletons (count == 1) are ALWAYS treated as uncertain, regardless of strategy
-
-# ? Collage-Based Classification (MASSIVE optimization!)
-# Show 50+ clusters in a single collage image instead of individual batches
-# Reduces API costs by 75-90% and allows comparing against unlimited clusters
-ENABLE_COLLAGE_CLASSIFICATION = True  # Use collages for classification
-COLLAGE_CLUSTERS_PER_IMAGE = 50  # Max clusters per collage (can go higher!)
-COLLAGE_GRID_COLUMNS = 10  # Grid layout (10 columns = 10×5 for 50)
-COLLAGE_THUMBNAIL_SIZE = 256  # Size of each thumbnail in collage (pixels)
-
-
-# =============================================================================
-# FUSED CLUSTERING WEIGHTS
-# =============================================================================
-# Strategy 1: Both photos have datetime (HIGH CONFIDENCE) - weights sum to 1.0
-# Filename weight increased since sequential numbers are highly predictive
-WEIGHT_TIME_WITH_DATETIME = 0.45  # Time is still primary
-WEIGHT_FILENAME_WITH_DATETIME = 0.40  # Increased (sequential filenames very reliable)
-WEIGHT_HASH_WITH_DATETIME = 0.15  # Decreased (pHash is support signal only)
-# Strategy 2: No datetime but strong filename (MEDIUM CONFIDENCE) - weights sum to 1.0
-# Filename is now PRIMARY signal since sequential numbers are highly predictive
-WEIGHT_FILENAME_NO_DATETIME = 0.75  # Increased (sequential filenames are very accurate)
-WEIGHT_HASH_NO_DATETIME = 0.25  # Decreased (pHash alone is unreliable per testing)
-FILENAME_STRONG_THRESHOLD = 0.3  # Minimum filename score to use this strategy
-# Strategy 3: Weak filename, use hash only (LOW CONFIDENCE) - weight = 1.0
-
-# =============================================================================
-# IMAGE PROCESSING
-# =============================================================================
-SUPPORTED_EXTS = {
-    ".jpg",
-    ".JPG",
-    ".JPEG",
-    ".jpeg",
-    ".PNG",
-    ".png",
-    ".WEBP",
-    ".webp",
-    ".BMP",
-    ".bmp",
-    ".TIF",
-    ".TIFF",
-    ".tif",
-    ".tiff",
-    ".HEIC",
-    ".HEIF",
-    ".heic",
-    ".heif",
-}
-
-# =============================================================================
-# LOCATION DATA
-# =============================================================================
 CITIES = {
     "puyallup": (47.1854, -122.2929),
     "bellevue": (47.6101, -122.2015),
     "tacoma": (47.2529, -122.4443),
 }
 
-# =============================================================================
-# ? CLASSIFICATION LABELS & MAPPING
-# <primary-keyword>-<specific-surface>-<city?>-<unique>.jpg
-# Primary keyword:
-# - broom-finish-driveway
-# - concrete-driveway
-# - concrete-patio
-# - concrete-repair
-# - concrete-resurfacing
+#
+# 🤖 AI CONFIGURATION
+#
+DEFAULT_MODEL = "gpt-4.1"
+DEFAULT_BATCH_SIZE = 12  # Images per API call (for standard classification)
 
-# =============================================================================
-# Canonical labels for classification and filename slugs
+# Rate limiting
+API_RATE_LIMIT_DELAY = 1.0  # Seconds between API calls (0 = no delay)
+MAX_RETRIES = 3
+RETRY_DELAY = 5.0  # Seconds before retry after rate limit
+
+#
+# 📸 CLUSTERING PARAMETERS
+#
+# GPS clustering
+DEFAULT_SITE_DISTANCE_FEET = 900.0  # Radius for same physical location
+
+# Temporal clustering
+DEFAULT_TIME_GAP_MINUTES = 180  # Max minutes between photos in same cluster
+
+# Visual similarity (perceptual hash)
+DEFAULT_HASH_THRESHOLD = 14  # Max pHash distance (0-64), sweet spot: 14-16
+
+# Fused clustering (combines time + filename + hash)
+DEFAULT_FUSE_THRESHOLD = 0.5  # Min similarity score (0.0-1.0)
+DEFAULT_MAX_EDGES = 32  # Max connections per photo
+
+# Clustering strategy weights
+# Strategy 1: Both photos have datetime (HIGH CONFIDENCE)
+WEIGHT_TIME_WITH_DATETIME = 0.45
+WEIGHT_FILENAME_WITH_DATETIME = 0.40
+WEIGHT_HASH_WITH_DATETIME = 0.15
+
+# Strategy 2: No datetime but strong filename (MEDIUM CONFIDENCE)
+WEIGHT_FILENAME_NO_DATETIME = 0.75
+WEIGHT_HASH_NO_DATETIME = 0.25
+FILENAME_STRONG_THRESHOLD = 0.3
+
+#
+# 🎨 SEO & FILENAME GENERATION
+#
+USE_SEMANTIC_KEYWORDS = True  # Rotate semantic variants for SEO diversity
+# ? CLASSIFICATION LABELS & MAPPING
+# <primary-keyword/work>-<specific-surface/extra identifiers>.jpg
+# Canonical labels for AI classification and SEO keywords
 LABELS = [
     "stamped-concrete",
     "concrete-repair",
@@ -211,17 +173,14 @@ SEMANTIC_KEYWORDS = {
         "stamped-concrete-designs",
         "stamped-concrete-patterns",
         "stamped-concrete-colors",
-        "stamped-concrete-cost",
-        "stamped-concrete-maintenance",
         "stamped-concrete-sealer",
         "stamped-concrete-installation",
     ],
     "cement-driveway": [
-        "cement-driveway-builder",
+        "cement-driveway-build",
         "cement-driveway-installation",
         "cement-driveway-resurfacing",
         "cement-driveway-repair",
-        "cement-driveway-cost",
         "cement-contractor-driveway",
         "cement-driveway-estimate",
     ],
@@ -238,8 +197,6 @@ SEMANTIC_KEYWORDS = {
         "concrete-porch-repair",
         "concrete-porch-resurfacing",
         "concrete-porch-steps",
-        "concrete-porch-ideas",
-        "concrete-porch-cost",
         "concrete-porch-overlay",
         "concrete-porch-railing-base",
     ],
@@ -248,13 +205,11 @@ SEMANTIC_KEYWORDS = {
         "retaining-wall-engineering",
         "concrete-retaining-wall",
         "block-retaining-wall",
-        "retaining-wall-cost",
         "retaining-wall-design",
         "retaining-wall-drainage",
     ],
     "stamped-concrete-patio": [
         "stamped-patio-ideas",
-        "stamped-patio-cost",
         "stamped-patio-colors",
         "stamped-patio-patterns",
         "stamped-patio-sealer",
@@ -276,19 +231,18 @@ SEMANTIC_KEYWORDS = {
         "patio-concrete-installers",
         "concrete-patio-builders",
         "concrete-patio-resurfacing",
-        "concrete-patio-cost",
-        "concrete-patio-designs",
+        "concrete-patio-design",
         "concrete-patio-extensions",
         "patio-concrete-finishes",
     ],
     "retaining-wall": [
-        "concrete-retaining-wall-builders",
         "concrete-retaining-wall-replacement",
         "tiered-retaining-walls",
         "retaining-wall-permit",
         "concrete-retaining-wall-foundation",
-        "concrete-retaining-wall-repair-services",
         "concrete-retaining-wall-capstones",
+        "concrete-retaining-wall-repair",
+        "concrete-weight-bearing-retaining-wall",
     ],
     "stamped-concrete-patios": [
         "stamped-patio-designs",
@@ -321,7 +275,6 @@ SEMANTIC_KEYWORDS = {
         "exposed-aggregate-finish",
         "exposed-aggregate-sealer",
         "exposed-aggregate-maintenance",
-        "exposed-aggregate-cost",
         "exposed-aggregate-mix",
         "seeded-aggregate-concrete",
         "washed-aggregate-finish",
@@ -333,7 +286,10 @@ SEMANTIC_KEYWORDS = {
         "residential-patio-concrete",
         "residential-concrete-steps",
         "residential-concrete-repair",
-        "residential-concrete-estimates",
+        "residential-concrete-resurfacing",
+        "residential-concrete-overlay",
+        "residential-concrete-leveling",
+        "high-end-residential-concrete",
     ],
     "retaining-wall-repair": [
         "leaning-retaining-wall-repair",
@@ -348,37 +304,9 @@ SEMANTIC_KEYWORDS = {
         "stamped-concrete-patio",
         "brushed-concrete-patio",
         "concrete-patio-drainage",
-        "concrete-patio-cost",
         "covered-concrete-patio",
         "concrete-patio-firepit",
         "concrete-patio-sealer",
-    ],
-    "retaining-wall-builders": [
-        "retaining-wall-construction",
-        "landscape-retaining-walls",
-        "concrete-block-walls",
-        "gravity-retaining-walls",
-        "segmental-retaining-walls",
-        "retaining-wall-geogrid",
-        "retaining-wall-footings",
-    ],
-    "concrete-driveway-companies": [
-        "driveway-paving-companies",
-        "driveway-installation-company",
-        "driveway-replacement-company",
-        "driveway-finishing-company",
-        "concrete-driveway-specialists",
-        "driveway-construction-company",
-        "driveway-concrete-firms",
-    ],
-    "concrete-patio-companies": [
-        "patio-installation-company",
-        "patio-resurfacing-company",
-        "decorative-concrete-company",
-        "patio-extension-company",
-        "patio-design-company",
-        "outdoor-living-concrete",
-        "hardscape-concrete-company",
     ],
     "concrete-walkway": [
         "concrete-pathway",
@@ -395,189 +323,95 @@ SEMANTIC_KEYWORDS = {
         "patio-concrete-finishes",
         "patio-concrete-drainage",
         "patio-concrete-steps",
-        "patio-concrete-cost",
+        "high-end-patio-concrete",
         "patio-concrete-overlay",
-    ],
-    "stamped-concrete": [
-        "decorative-concrete",
-        "pattern-stamped-concrete",
-        "colored-concrete",
-        "stamped-concrete-installers",
-        "stamped-concrete-specialists",
-        "stamped-concrete-estimates",
-        "stamped-concrete-restoration",
-    ],
-    "concrete-sidewalk": [
-        "sidewalk-concrete-installers",
-        "sidewalk-repair-contractor",
-        "ada-sidewalk-compliance",
-        "city-sidewalk-permit",
-        "sidewalk-trip-hazard-repair",
-        "curb-ramp-concrete",
-        "sidewalk-expansion-joints",
-    ],
-    "concrete-steps-repair": [
-        "crumbling-concrete-steps",
-        "concrete-stair-repair",
-        "concrete-step-resurfacing",
-        "concrete-step-nosing-repair",
-        "handrail-base-repair",
-        "concrete-steps-patching",
-        "concrete-steps-leveling",
-    ],
-    "local-concrete": [
-        "trusted-concrete",
-        "top-rated-concrete",
-        "affordable-concrete",
-        "licensed-and-insured-concrete",
-        "concrete-contractor-reviews",
-        "concrete-contractor-neighborhoods",
-        "community-concrete-services",
-    ],
-    "concrete-slab": [
-        "garage-slab",
-        "shed-slab",
-        "house-slab-foundation",
-        "monolithic-slab-pour",
-        "concrete-slab-reinforcement",
-        "concrete-slab-leveling",
-        "slab-on-grade-contractor",
-    ],
-    "exposed-aggregate-driveway": [
-        "exposed-aggregate-driveway-cost",
-        "exposed-aggregate-driveway-sealer",
-        "exposed-aggregate-driveway-ideas",
-        "exposed-aggregate-driveway-maintenance",
-        "exposed-aggregate-borders",
-        "exposed-aggregate-concrete-driveway",
-        "decorative-aggregate-driveway",
-    ],
-    "exposed-aggregate-patio": [
-        "exposed-aggregate-patio-ideas",
-        "exposed-aggregate-patio-sealer",
-        "exposed-aggregate-patio-cost",
-        "exposed-aggregate-patio-maintenance",
-        "exposed-aggregate-patio-edges",
-        "exposed-aggregate-steps",
-        "exposed-aggregate-seeded-patio",
-    ],
-    "concrete-tacoma": [
-        "tacoma-concrete-company",
-        "tacoma-concrete-services",
-        "tacoma-concrete-driveways",
-        "tacoma-concrete-patios",
-        "tacoma-concrete-estimates",
-        "tacoma-concrete-repair",
-        "tacoma-residential-concrete",
-    ],
-    "stamped-concrete-tacoma": [
-        "tacoma-stamped-concrete-patterns",
-        "tacoma-stamped-concrete-cost",
-        "tacoma-stamped-patio",
-        "tacoma-decorative-concrete",
-        "tacoma-stamped-concrete-colors",
-        "tacoma-stamped-concrete-sealer",
-        "tacoma-stamped-concrete-installers",
-    ],
-    "concrete-driveway-tacoma": [
-        "tacoma-concrete-driveway",
-        "tacoma-driveway-replacement",
-        "tacoma-driveway-estimate",
-        "tacoma-driveway-repair",
-        "tacoma-driveway-concrete-company",
-        "tacoma-driveway",
-        "tacoma-driveway-finishes",
-    ],
-    "concrete-bellevue": [
-        "bellevue-concrete-company",
-        "bellevue-concrete-services",
-        "bellevue-concrete-driveways",
-        "bellevue-concrete-patios",
-        "bellevue-concrete-estimates",
-        "bellevue-concrete-repair",
-        "bellevue-residential-concrete",
-    ],
-    "stamped-concrete-bellevue": [
-        "bellevue-stamped-concrete-patterns",
-        "bellevue-stamped-concrete-cost",
-        "bellevue-stamped-patio",
-        "bellevue-decorative-concrete",
-        "bellevue-stamped-concrete-colors",
-        "bellevue-stamped-concrete-sealer",
-        "bellevue-stamped-concrete-installers",
-    ],
-    "concrete-driveway-bellevue": [
-        "bellevue-concrete-driveway",
-        "bellevue-driveway-replacement",
-        "bellevue-driveway-estimate",
-        "bellevue-driveway-repair",
-        "bellevue-driveway-concrete-company",
-        "bellevue-driveway",
-        "bellevue-driveway-finishes",
-    ],
-    "concrete-driveway-visualizer": [
-        "driveway-design-tool",
-        "driveway-simulator",
-        "driveway-mockup",
-        "driveway-before-and-after",
-        "concrete-driveway-planner",
-        "driveway-style-preview",
-        "driveway-render-tool",
-    ],
-    "concrete-patio-visualizer": [
-        "patio-design-tool",
-        "patio-simulator",
-        "patio-mockup",
-        "patio-before-and-after",
-        "concrete-patio-planner",
-        "patio-style-preview",
-        "patio-render-tool",
-    ],
-    "driveway-visualizer": [
-        "driveway-configurator",
-        "driveway-3d-preview",
-        "driveway-design-app",
-        "driveway-material-selector",
-        "driveway-layout-tool",
-        "driveway-color-visualizer",
-        "driveway-pattern-visualizer",
-    ],
-    "stamped-concrete-visualizer": [
-        "stamped-concrete-design-tool",
-        "stamped-concrete-simulator",
-        "stamped-concrete-pattern-preview",
-        "stamped-concrete-color-visualizer",
-        "stamped-concrete-render",
-        "decorative-concrete-visualizer",
-        "stamped-concrete-mockup",
-    ],
-    "exposed-aggregate-visualizer": [
-        "aggregate-finish-visualizer",
-        "exposed-aggregate-preview",
-        "exposed-aggregate-design-tool",
-        "aggregate-color-visualizer",
-        "aggregate-texture-visualizer",
-        "exposed-aggregate-simulator",
-        "aggregate-mockup",
-    ],
-    "patio-visualizer": [
-        "outdoor-patio-visualizer",
-        "patio-layout-tool",
-        "patio-surface-preview",
-        "patio-texture-visualizer",
-        "patio-color-visualizer",
-        "patio-design-app",
-        "patio-render-preview",
     ],
 }
 
+# Smart disambiguation for generic labels
+GENERIC_PRIMARIES = {
+    "decorative-concrete",
+    "concrete-repair",
+    "concrete-resurfacing",
+    "concrete-project",
+    "unknown",
+}
 
-# Filename format examples:
-# Specific primary (no surface): stamped-concrete-driveway-bellevue-rc-concrete-01.jpg
-# Generic primary + surface: decorative-concrete-steps-bellevue-rc-concrete-01.jpg
-# Format: {primary-keyword}[-{surface}]-{city}-{brand}-{index}.jpg
+SURFACE_NOUNS = {
+    "driveway",
+    "patio",
+    "walkway",
+    "sidewalk",
+    "steps",
+    "wall",
+    "repair",
+    "resurfacing",
+    "stamped",
+    "exposed",
+    "broom",
+    "colored",
+    "stamping",
+    "overlay",
+    "decorative",
+    "slab",
+}
 
+SURFACE_MAP = {}  # Populated at runtime from descriptors
 
+#
+# 🔧 ADVANCED OPTIONS (Usually don't need to change)
+#
+
+# Image processing
+THUMBNAIL_SIZE = 512
+SUPPORTED_EXTS = {
+    ".jpg",
+    ".JPG",
+    ".JPEG",
+    ".jpeg",
+    ".PNG",
+    ".png",
+    ".WEBP",
+    ".webp",
+    ".BMP",
+    ".bmp",
+    ".TIF",
+    ".TIFF",
+    ".tif",
+    ".tiff",
+    ".HEIC",
+    ".HEIF",
+    ".heic",
+    ".heif",
+}
+
+# Execution defaults
+DEFAULT_DRY_RUN = False
+
+# Advanced: Unified matching (only used if DEFAULT_ASSIGN_SINGLETONS = True)
+ENABLE_UNIFIED_MATCHING = False
+MIN_MATCH_CONFIDENCE = 0.65
+MAX_SINGLETONS_TO_ASSIGN = 199
+
+CONFIDENT_STRATEGIES = [
+    "gps_location",
+    "time+filename+hash",
+    "filename+hash",
+]
+
+UNCERTAIN_STRATEGIES = [
+    "hash_only",
+]
+
+# Advanced: Collage-based classification (experimental)
+ENABLE_COLLAGE_CLASSIFICATION = True
+COLLAGE_CLUSTERS_PER_IMAGE = 50
+COLLAGE_GRID_COLUMNS = 10
+COLLAGE_THUMBNAIL_SIZE = 256
+
+#
+# 📝 AI CLASSIFICATION PROMPT (Standard Classification Mode Only)
+#
 MESSAGES = [
     {
         "role": "system",
