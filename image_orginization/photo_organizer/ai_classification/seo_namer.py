@@ -11,7 +11,15 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 from PIL import Image
 
-from ..config import LABELS, API_RATE_LIMIT_DELAY, MAX_RETRIES, RETRY_DELAY
+from ..config import (
+    LABELS,
+    API_RATE_LIMIT_DELAY,
+    MAX_RETRIES,
+    RETRY_DELAY,
+    INDUSTRY_DESCRIPTOR,
+    SEO_FILENAME_EXAMPLES,
+    WORK_CLASSIFICATION_GUIDE,
+)
 from ..models import Item
 
 try:
@@ -33,12 +41,13 @@ def create_seo_naming_prompt(target_keywords: List[str]) -> List[Dict]:
         List of message dicts for OpenAI API
     """
     keywords_list = ", ".join(target_keywords[:30])  # Show first 30 keywords
+    examples_list = "\n".join(f"  * {ex}.jpg" for ex in SEO_FILENAME_EXAMPLES)
 
     return [
         {
             "role": "system",
             "content": (
-                "You are an SEO specialist who optimizes concrete construction photos for local search rankings (SERP). "
+                f"You are an SEO specialist who optimizes {INDUSTRY_DESCRIPTOR} photos for local search rankings (SERP). "
                 "Your job is to create unique, descriptive filenames for each image that will help them rank in Google Images "
                 "and local search results.\n\n"
                 "TARGET KEYWORDS (try to naturally incorporate these):\n"
@@ -46,14 +55,7 @@ def create_seo_naming_prompt(target_keywords: List[str]) -> List[Dict]:
                 "FILENAME FORMAT:\n"
                 "- Use format: <primary-keyword>-<surface/identifiers>.jpg\n"
                 "- Examples:\n"
-                "  * stamped-concrete-driveway.jpg\n"
-                "  * imprinted-concrete-driveway.jpg\n"
-                "  * decorative-concrete-steps.jpg\n"
-                "  * custom-concrete-logo-stained-overlay.jpg\n"
-                "  * decorative-concrete-celtic-cross-inlay.jpg\n"
-                "  * stamped-patio-decorative-border-curves.jpg\n"
-                "  * exposed-aggregate-walkway-modern-design.jpg\n"
-                "  * concrete-driveway-broom-finish-new-pour.jpg\n\n"
+                f"{examples_list}\n\n"
                 "RULES:\n"
                 "1. Each image gets a UNIQUE filename (no duplicates)\n"
                 "2. Use target keywords when they match the image content\n"
@@ -65,10 +67,7 @@ def create_seo_naming_prompt(target_keywords: List[str]) -> List[Dict]:
                 "8. DO NOT include numbers, dates, or location names\n"
                 "9. DO NOT include file extensions in your response\n\n"
                 "CLASSIFY THE WORK:\n"
-                "- Identify the concrete type (driveway, patio, walkway, steps, etc.)\n"
-                "- Note the surface finish (stamped, exposed-aggregate, broom, smooth, etc.)\n"
-                "- Mention unique features (curves, borders, patterns, logos, inlays, etc.)\n"
-                "- Describe the style (modern, decorative, custom, residential, etc.)\n\n"
+                f"{WORK_CLASSIFICATION_GUIDE}\n\n"
                 "Your goal: Create SEO-friendly filenames that accurately describe each image "
                 "while naturally incorporating relevant keywords for local search ranking."
             ),

@@ -1,6 +1,7 @@
 """Message builders for OpenAI API calls."""
 
 from typing import List, Dict
+from ..config import INDUSTRY_DESCRIPTOR
 
 
 def build_classification_messages(base_messages: List[Dict]) -> List[Dict]:
@@ -35,9 +36,9 @@ def build_singleton_assignment_messages(
         {
             "role": "system",
             "content": (
-                "You are an expert at matching construction photos to project clusters. "
+                f"You are an expert at matching {INDUSTRY_DESCRIPTOR} photos to project clusters. "
                 "For each singleton photo, determine which existing cluster (if any) it belongs to. "
-                "Consider: visual similarity, materials, construction phase, lighting, weather conditions, and context. "
+                "Consider: visual similarity, materials, work phase, lighting, weather conditions, and context. "
                 "Return cluster_id=-1 if no good match exists."
             ),
         },
@@ -67,10 +68,10 @@ def build_singleton_assignment_messages_with_labels(
         {
             "role": "system",
             "content": (
-                "You are an expert at matching construction photos to labeled project clusters. "
-                "Each cluster has already been classified with a specific label (e.g., 'stamped-concrete-driveway'). "
+                f"You are an expert at matching {INDUSTRY_DESCRIPTOR} photos to labeled project clusters. "
+                "Each cluster has already been classified with a specific label. "
                 "For each singleton photo, determine which labeled cluster (if any) it belongs to. "
-                "Consider: visual similarity, materials, construction type, label semantics, and context. "
+                "Consider: visual similarity, materials, work type, label semantics, and context. "
                 "Return cluster_id=-1 if no good match exists."
             ),
         },

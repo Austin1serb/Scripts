@@ -1,5 +1,7 @@
 # Configuration Guide
 
+**NEW:** The script is now **industry-agnostic**! Change `INDUSTRY_TYPE` and `INDUSTRY_DESCRIPTOR` to adapt for any business. See [INDUSTRY_SWITCH_GUIDE.md](INDUSTRY_SWITCH_GUIDE.md) for templates.
+
 ## 🎯 Quick Start: Choose Your Mode
 
 Edit `photo_organizer/config.py` and set **ONE** mode to `True`:
@@ -23,6 +25,29 @@ DEFAULT_ASSIGN_SINGLETONS = False  # Advanced matching (experimental)
 ---
 
 ## 📋 Configuration Sections
+
+### 0. Industry Settings (Change First!)
+
+```python
+INDUSTRY_TYPE = "concrete"              # Short identifier for folder names
+INDUSTRY_DESCRIPTOR = "concrete construction"  # Full description for AI prompts
+```
+
+**What changes when you update these:**
+- Folder names: `misc-{INDUSTRY_TYPE}-{city}`
+- AI prompts: "You classify {INDUSTRY_DESCRIPTOR} photos..."
+- All industry references throughout the system
+
+**Ready-to-use templates available at bottom of `config.py`:**
+- Concrete (default)
+- Window Tinting
+- Roofing
+- Landscaping
+- Painting
+
+See [INDUSTRY_SWITCH_GUIDE.md](INDUSTRY_SWITCH_GUIDE.md) for detailed instructions.
+
+---
 
 ### 1. Main Execution Modes (Top Priority)
 

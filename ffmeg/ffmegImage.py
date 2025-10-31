@@ -20,16 +20,16 @@ def process_images_and_videos():
     video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".flv", ".webm")
 
     # Settings for images
-    target_width = 520  # Resize width (maintain aspect ratio)
-    quality = 50  # lower = better quality
-    output_format = "jpeg"  # Output image format
+    target_width = 2000  # Resize width (maintain aspect ratio)
+    quality = 90  # lower = better quality
+    output_format = "webp"  # Output image format
     max_colors = None  # Limit colors (None = no limit)
     grayscale_percentage = None  # Grayscale conversion percentage (None = no grayscale)
-    icon = True
+    icon = False
     # Settings for video frame extraction
     frames_to_extract = 1  # Number of frames to extract per video
     frame_interval = 1  # Time interval in seconds between frames (for multiple frames)
-    lossless = False
+    lossless = True
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
 

@@ -11,9 +11,9 @@ def trim_and_optimize_video(
     start_time,
     duration,
     preset="veryfast",
-    target_bitrate="1.5M",
-    max_bitrate="2000K",
-    bufsize="1.5M",
+    target_bitrate="500k",
+    max_bitrate="1000K",
+    bufsize="1M",
     width=1280,
     height=720,
     fps=20,
@@ -158,8 +158,8 @@ def trim_and_optimize_video(
 
 if __name__ == "__main__":
     # Change these paths to match your file locations
-    input_video = current_dir + "/image_input/solar-overview.mp4"
-    output_video = current_dir + "/optimized_output/solar-overview-2.mp4"
+    input_video = current_dir + "/image_input/art-hero.mp4"
+    output_video = current_dir + "/optimized_output/art-hero-2.mp4"
 
     # Set the trimming parameters (e.g., start at 10 seconds, output 30 seconds long)
     start_time = "00:00:00"

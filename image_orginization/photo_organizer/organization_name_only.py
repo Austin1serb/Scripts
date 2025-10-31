@@ -16,7 +16,7 @@ from collections import defaultdict
 from slugify import slugify
 
 from .models import Item
-from .config import CITIES
+from .config import CITIES, INDUSTRY_TYPE
 from .utils.geo import nearest_city
 
 
@@ -34,7 +34,7 @@ def organize_name_only(
     2. For each image, build filename: {ai-name}-{city}-{brand}.jpg
     3. Handle duplicates by adding numbers at end: {ai-name}-{city}-{brand}-02.jpg
     4. Large clusters: Each gets its own folder
-    5. Small clusters: ALL go into one misc-concrete-{city} folder per city
+    5. Small clusters: ALL go into one misc-{industry}-{city} folder per city
 
     Args:
         groups: List of clusters (each cluster is a list of Items)
@@ -142,7 +142,7 @@ def organize_name_only(
 
         # Create one misc folder per city
         for city, items in small_items_by_city.items():
-            folder_name = f"misc-concrete-{slugify(city, lowercase=True)}"
+            folder_name = f"misc-{INDUSTRY_TYPE}-{slugify(city, lowercase=True)}"
             folder = out_dir / folder_name
             folder.mkdir(parents=True, exist_ok=True)
 
@@ -212,6 +212,6 @@ def organize_name_only(
     print(f"   - {len(large_clusters)} multi-image cluster folders")
     if small_clusters:
         print(
-            f"   - {len(small_items_by_city)} misc-concrete-{{city}} folders ({len(small_clusters)} small clusters)"
+            f"   - {len(small_items_by_city)} misc-{INDUSTRY_TYPE}-{{city}} folders ({len(small_clusters)} small clusters)"
         )
     print(f"📄 Manifest: {manifest_path}")

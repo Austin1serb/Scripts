@@ -449,7 +449,7 @@ def main():
     # Configuration
     config = {
         # General settings
-        "target_width": 881,
+        "target_width": 1080,
         "output_format": "webp",
         "max_colors": None,  # Set to None for no color reduction
         # Transparency handling
@@ -461,12 +461,12 @@ def main():
         # JPEG/JPG specific
         "jpeg_quality": 60,  # 0-100
         # WebP specific
-        "webp_quality": 80,  # 0-100 higher is better
+        "webp_quality": 40,  # 0-100 higher is better
         "webp_lossless": False,
         # GIF specific
         "gif_colors": 128,
         # AVIF specific
-        "avif_quality": 100,  # 0-100
+        "avif_quality": 10,  # 0-100
         # SVG specific
         "convert_svg_to_png": False,
         # Video frame extraction

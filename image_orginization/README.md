@@ -1,18 +1,30 @@
 # Photo Organizer
 
-AI-powered construction photo organization pipeline that intelligently clusters, classifies, and organizes photos into groups based on the project site with SEO-friendly file-names.
+AI-powered photo organization pipeline that intelligently clusters, classifies, and organizes photos into groups based on project sites with SEO-friendly filenames.
 
-it takes your unorganized photos and organizes them into groups based on the project site with SEO-friendly file-names, based the type of job, finish(surface), city, and unique identifiers.
+Takes unorganized photos and organizes them into groups based on project site, work type, finish/surface, city, and unique identifiers.
 
 ## Features
 
+- **Industry-Agnostic**: Easily configure for any business type (concrete, tinting, roofing, landscaping, etc.)
 - **Smart Ingestion**: Extracts EXIF metadata (datetime, GPS), creates thumbnails, computes perceptual hashes
 - **Multi-Strategy Clustering**:
   - GPS-based clustering for photos at the same physical location
   - Fused clustering using filename patterns, perceptual hashes, and timestamps
   - Temporal clustering with time gaps and hash centroids
-- **AI Classification**: Optional OpenAI Vision API integration for concrete construction type classification
+- **AI Classification**: Optional OpenAI Vision API integration for work type classification
 - **SEO-Optimized Output**: Generates meaningful folder structures and filenames with brand, surface type, city, and unique identifiers
+
+## Quick Industry Switch
+
+Change your industry in `photo_organizer/config.py`:
+
+```python
+INDUSTRY_TYPE = "concrete"  # or "tint", "roofing", "landscaping", etc.
+INDUSTRY_DESCRIPTOR = "concrete construction"
+```
+
+See [INDUSTRY_SWITCH_GUIDE.md](INDUSTRY_SWITCH_GUIDE.md) for templates and detailed instructions.
 
 ### Basic Usage
 

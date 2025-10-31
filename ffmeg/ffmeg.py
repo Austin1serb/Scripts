@@ -7,10 +7,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 def process_videos(
     video_format="mp4",
-    image_format="webp",
+    image_format="mp4",
     video_extensions=(".mp4", ".mov", ".avi", ".mkv", ".webm"),
     target_width=4000,
-    crf=18,
+    crf=50,
     preset="veryfast",
     image_quality=20,
     overwrite=False,

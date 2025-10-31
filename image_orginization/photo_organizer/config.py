@@ -30,15 +30,38 @@ DEFAULT_ASSIGN_SINGLETONS = False  # Advanced mode with AI matching (experimenta
 #
 # 📁 PATHS & DIRECTORIES
 #
-IMAGE_DIR = "/Users/austinserb/Desktop/RC Photos"
+IMAGE_DIR = "/Users/austinserb/Downloads/bellevue-wa"
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = str(SCRIPT_DIR / "organized")
 
 #
-# 🏢 BRANDING & LOCATION
+# 🏢 INDUSTRY & BRANDING
 #
+# Industry type - this is the SINGLE SOURCE OF TRUTH for business type
+# Change this to adapt the entire script for different industries
+INDUSTRY_TYPE = "concrete"  # Options: "concrete", "tint", "roofing", "landscaping", "painting", etc.
+INDUSTRY_DESCRIPTOR = "concrete construction"  # Full description for AI prompts
+
+# SEO naming examples (used in AI prompts for filename generation)
+# Customize these examples to match your industry
+SEO_FILENAME_EXAMPLES = [
+    "stamped-concrete-driveway",
+    "imprinted-concrete-patio",
+    "decorative-concrete-steps",
+    "custom-concrete-logo-stained-overlay",
+    "exposed-aggregate-walkway-modern-design",
+    "concrete-driveway-broom-finish-new-pour",
+]
+
+# Work classification instructions for AI (industry-specific guidance)
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the concrete type (driveway, patio, walkway, steps, etc.)\n"
+    "- Note the surface finish (stamped, exposed-aggregate, broom, smooth, etc.)\n"
+    "- Mention unique features (curves, borders, patterns, logos, inlays, etc.)\n"
+    "- Describe the style (modern, decorative, custom, residential, etc.)"
+)
+
 DEFAULT_BRAND = "RC Concrete"
-DEFAULT_WORK_TYPE = "residential concrete"
 DEFAULT_ROTATE_CITIES = True  # Rotate city names if no GPS data
 
 CITIES = {
@@ -416,7 +439,7 @@ MESSAGES = [
     {
         "role": "system",
         "content": (
-            "You classify concrete-construction photos for a contractor. Your job is to assign ONE label from an "
+            f"You classify {INDUSTRY_DESCRIPTOR} photos for a contractor. Your job is to assign ONE label from an "
             "allowed list and a short descriptor to each image for SEO grouping.\n\n"
             "HARD OUTPUT CONTRACT:\n"
             "- Output STRICT JSON only, UTF-8, no prose, no code fences\n"
@@ -499,3 +522,162 @@ MESSAGES = [
         ),
     },
 ]
+
+#
+# 🏭 INDUSTRY-SPECIFIC TEMPLATES
+#
+# Quick-switch templates for different industries
+# Copy the relevant template to the top of this file to switch industries
+
+"""
+# ============================================================================
+# CONCRETE INDUSTRY TEMPLATE
+# ============================================================================
+INDUSTRY_TYPE = "concrete"
+INDUSTRY_DESCRIPTOR = "concrete construction"
+DEFAULT_BRAND = "RC Concrete"
+
+SEO_FILENAME_EXAMPLES = [
+    "stamped-concrete-driveway",
+    "imprinted-concrete-patio",
+    "decorative-concrete-steps",
+    "custom-concrete-logo-stained-overlay",
+    "exposed-aggregate-walkway-modern-design",
+    "concrete-driveway-broom-finish-new-pour",
+]
+
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the concrete type (driveway, patio, walkway, steps, etc.)\n"
+    "- Note the surface finish (stamped, exposed-aggregate, broom, smooth, etc.)\n"
+    "- Mention unique features (curves, borders, patterns, logos, inlays, etc.)\n"
+    "- Describe the style (modern, decorative, custom, residential, etc.)"
+)
+
+LABELS = [
+    "stamped-concrete", "concrete-driveway", "concrete-patio",
+    "concrete-walkway", "concrete-sidewalk", "concrete-repair",
+    "retaining-wall", "exposed-aggregate-concrete",
+    "stamped-concrete-patio", "concrete-driveway-repair",
+]
+
+# ============================================================================
+# WINDOW TINT INDUSTRY TEMPLATE
+# ============================================================================
+INDUSTRY_TYPE = "tint"
+INDUSTRY_DESCRIPTOR = "window tinting"
+DEFAULT_BRAND = "Pro Tint"
+
+SEO_FILENAME_EXAMPLES = [
+    "ceramic-automotive-tint-front-windshield",
+    "carbon-tint-sedan-full-car",
+    "residential-window-film-privacy-frost",
+    "commercial-building-heat-rejection-tint",
+    "decorative-etched-glass-film-lobby",
+    "security-film-storefront-shatter-resistant",
+]
+
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the tint type (automotive, residential, commercial)\n"
+    "- Note the film material (ceramic, carbon, dyed, metallic, etc.)\n"
+    "- Mention the purpose (privacy, heat-rejection, UV-protection, security, etc.)\n"
+    "- Describe the application (windshield, side-windows, full-car, building, etc.)"
+)
+
+LABELS = [
+    "automotive-window-tint", "residential-window-tint",
+    "commercial-window-tint", "ceramic-tint", "carbon-tint",
+    "dyed-tint", "windshield-tint", "privacy-tint",
+    "heat-rejection-tint", "uv-protection-tint",
+    "decorative-window-film", "security-film",
+]
+
+# ============================================================================
+# ROOFING INDUSTRY TEMPLATE
+# ============================================================================
+INDUSTRY_TYPE = "roofing"
+INDUSTRY_DESCRIPTOR = "roofing services"
+DEFAULT_BRAND = "Elite Roofing"
+
+SEO_FILENAME_EXAMPLES = [
+    "asphalt-shingle-roof-replacement",
+    "metal-roofing-standing-seam",
+    "tile-roof-repair-spanish-style",
+    "flat-roof-tpo-membrane-installation",
+    "emergency-storm-damage-repair",
+    "skylight-installation-velux-residential",
+]
+
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the roof type (asphalt-shingle, metal, tile, flat, etc.)\n"
+    "- Note the work performed (replacement, repair, installation, inspection, etc.)\n"
+    "- Mention specific features (standing-seam, spanish-tile, tpo-membrane, etc.)\n"
+    "- Describe the context (residential, commercial, emergency, storm-damage, etc.)"
+)
+
+LABELS = [
+    "asphalt-shingle-roof", "metal-roofing", "tile-roofing",
+    "flat-roof", "roof-repair", "roof-replacement",
+    "gutter-installation", "skylight-installation",
+    "roof-inspection", "emergency-roof-repair",
+]
+
+# ============================================================================
+# LANDSCAPING INDUSTRY TEMPLATE
+# ============================================================================
+INDUSTRY_TYPE = "landscaping"
+INDUSTRY_DESCRIPTOR = "landscaping services"
+DEFAULT_BRAND = "Green Scapes"
+
+SEO_FILENAME_EXAMPLES = [
+    "paver-patio-herringbone-pattern",
+    "retaining-wall-natural-stone",
+    "irrigation-system-drip-line-installation",
+    "landscape-design-modern-drought-tolerant",
+    "outdoor-lighting-path-accent-lights",
+    "sod-installation-fescue-lawn",
+]
+
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the work type (hardscaping, softscaping, maintenance, design, etc.)\n"
+    "- Note specific elements (paver-patio, retaining-wall, garden-bed, etc.)\n"
+    "- Mention materials (natural-stone, pavers, mulch, sod, etc.)\n"
+    "- Describe the style (modern, traditional, drought-tolerant, native-plants, etc.)"
+)
+
+LABELS = [
+    "lawn-maintenance", "landscape-design", "irrigation-system",
+    "hardscaping", "retaining-wall", "paver-patio",
+    "outdoor-lighting", "tree-trimming", "mulching",
+    "sod-installation", "garden-bed", "landscape-renovation",
+]
+
+# ============================================================================
+# PAINTING INDUSTRY TEMPLATE
+# ============================================================================
+INDUSTRY_TYPE = "painting"
+INDUSTRY_DESCRIPTOR = "painting services"
+DEFAULT_BRAND = "Pro Painters"
+
+SEO_FILENAME_EXAMPLES = [
+    "interior-painting-living-room-neutral",
+    "exterior-house-painting-two-tone",
+    "cabinet-painting-kitchen-white-shaker",
+    "deck-staining-semi-transparent-cedar",
+    "commercial-painting-office-space",
+    "trim-painting-baseboards-doors-white",
+]
+
+WORK_CLASSIFICATION_GUIDE = (
+    "- Identify the location (interior, exterior, commercial, residential, etc.)\n"
+    "- Note what's being painted (walls, cabinets, deck, fence, trim, etc.)\n"
+    "- Mention the finish (matte, satin, semi-gloss, stain, etc.)\n"
+    "- Describe the space or context (living-room, kitchen, office, house-exterior, etc.)"
+)
+
+LABELS = [
+    "interior-painting", "exterior-painting", "cabinet-painting",
+    "deck-staining", "fence-painting", "pressure-washing",
+    "drywall-repair", "texture-painting", "trim-painting",
+    "commercial-painting", "residential-painting",
+]
+"""

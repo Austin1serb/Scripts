@@ -60,7 +60,7 @@ def optimize_to_webm(
     # quality
     crf: Optional[int] = 28,  # if set ⇒ single‑pass CRF max 51 min 0
     target_bitrate: str = "400k",  # used only if crf is None
-    preset: str = "best",  #  good|realtime|best…
+    preset: str = "good",  #  good|realtime|best…
     threads: int = 0,  # 0 = auto
 ):
     input_path, output_path = Path(input_path), Path(output_path)
@@ -188,19 +188,19 @@ def optimize_to_webm(
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    input_path = current_dir + "/image_input" + "/solar-overview.mp4"
-    output_path = current_dir + "/optimized_output" + "/solar-overview.mp4"
+    input_path = current_dir + "/image_input" + "/text-bg.mp4"
+    output_path = current_dir + "/optimized_output" + "/text-bg.webm"
 
     optimize_to_webm(
         input_path=input_path,
         output_path=output_path,
-        start_time="00:00:00.00",
+        # start_time="00:00:00.00",
         # duration="00:00:11.00",
         crop=False,
-        width=881,
+        width=1080,
         height=720,
         fps=30,
-        crf=20,
+        crf=50,  # 0-63, 10 is good quality
         preset="good",  #  good|realtime|best…
-        target_bitrate="1.5M",  # used only if crf is None
+        target_bitrate="250k",  # used only if crf is None
     )

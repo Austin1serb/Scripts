@@ -13,6 +13,7 @@ from .config import (
     SURFACE_MAP,
     SEMANTIC_KEYWORDS,
     USE_SEMANTIC_KEYWORDS,
+    INDUSTRY_TYPE,
 )
 from .utils.geo import nearest_city
 
@@ -208,7 +209,7 @@ def organize(
 
         # Create one misc folder per city
         for city, items in singletons_by_city.items():
-            folder_name = f"misc-concrete-{slugify(city, lowercase=True)}"
+            folder_name = f"misc-{INDUSTRY_TYPE}-{slugify(city, lowercase=True)}"
             folder = out_dir / folder_name
             folder.mkdir(parents=True, exist_ok=True)
 
@@ -282,6 +283,6 @@ def organize(
     print(f"   - {len(multi_clusters)} multi-image project folders")
     if singleton_clusters:
         print(
-            f"   - {len(singletons_by_city)} misc-concrete-{{city}} folders with {len(singleton_clusters)} singletons"
+            f"   - {len(singletons_by_city)} misc-{INDUSTRY_TYPE}-{{city}} folders with {len(singleton_clusters)} singletons"
         )
     print(f"📄 Manifest: {out_dir/'manifest.json'}")

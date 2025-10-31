@@ -13,6 +13,9 @@
 	document.querySelectorAll("*").forEach((node) => {
 		node.removeAttribute("*");
 		node.removeAttribute("class");
+		node.removeAttribute("style");
+
+
 		// node.removeAttribute("id");
 		node.removeAttribute("srcset");
 		node.removeAttribute("href");
@@ -48,11 +51,11 @@
 	removeComments(document.documentElement);
 
 	// // Clear all SVG elements but keep the tags
-	// document.querySelectorAll("image").forEach((svg) => {
-	// 	while (svg.firstChild) {
-	// 		svg.remove;
-	// 	}
-	// });
+	document.querySelectorAll("image").forEach((svg) => {
+		while (svg.firstChild) {
+			svg.remove;
+		}
+	});
 
 	console.log("HTML has been condensed. Only element tags and text content remain.");
 })();

@@ -14,6 +14,7 @@ from ..config import (
     API_RATE_LIMIT_DELAY,
     MAX_RETRIES,
     RETRY_DELAY,
+    INDUSTRY_DESCRIPTOR,
 )
 from ..utils.loading_spinner import Spinner
 
@@ -419,41 +420,41 @@ def match_uncertain_items_with_collage(
             f"\n  🔎 Matching {item_type} #{uncertain_id}: {uncertain_example.thumb.name}"
         )
 
-        # Build prompt with detailed concrete-specific matching rules
+        # Build prompt with detailed industry-specific matching rules
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are an expert at matching concrete-construction photos to project clusters. "
+                    f"You are an expert at matching {INDUSTRY_DESCRIPTOR} photos to project clusters. "
                     "Your task is to determine if an uncertain photo belongs to any of the confident clusters shown in a labeled collage.\n\n"
                     "MATCHING CRITERIA (apply in priority order):\n"
                     "1. PHYSICAL LOCATION: Same property/project site (check backgrounds, structures, landscaping, fencing)\n"
-                    "2. CONCRETE TYPE: Same element type (driveway vs patio vs walkway vs steps vs slab)\n"
-                    "3. FINISH PATTERN: Same finish (stamped pattern, exposed aggregate, broom, smooth)\n"
-                    "4. CONSTRUCTION PHASE: Same work stage (demo, formwork, pour, finishing, cured)\n"
-                    "5. VISUAL FEATURES: Same distinctive features (cracks, stains, borders, joints, apron shape)\n\n"
+                    "2. WORK TYPE: Same work element type and category\n"
+                    "3. FINISH/PATTERN: Same finish, pattern, or material type\n"
+                    "4. WORK PHASE: Same work stage (prep, installation, finishing, completed)\n"
+                    "5. VISUAL FEATURES: Same distinctive features (patterns, colors, textures, borders)\n\n"
                     "STRONG MATCH SIGNALS (0.80-1.00 confidence):\n"
-                    "- Identical stamped pattern (wood plank, ashlar, flagstone, cobblestone)\n"
+                    "- Identical patterns, textures, or materials\n"
                     "- Same background structures (house facade, garage door, fence, deck)\n"
                     "- Same landscaping (trees, garden borders, planters visible in both)\n"
-                    "- Same distinctive repairs (crack patterns, color-mismatched patches)\n"
-                    "- Same curb cut or apron shape\n\n"
+                    "- Same distinctive features (unique details, colors, custom elements)\n"
+                    "- Same site layout or context\n\n"
                     "MEDIUM MATCH SIGNALS (0.60-0.79 confidence):\n"
-                    "- Similar concrete type and finish, but background partially occluded\n"
-                    "- Same general construction phase and materials\n"
+                    "- Similar work type and finish, but background partially occluded\n"
+                    "- Same general work phase and materials\n"
                     "- Similar weather/lighting conditions and time period\n\n"
                     "WEAK/NO MATCH (<0.60 confidence → return -1):\n"
-                    "- Different concrete types (driveway photo vs patio cluster)\n"
-                    "- Different finish patterns (stamped vs broom-finish)\n"
+                    "- Different work types or elements\n"
+                    "- Different finish patterns or materials\n"
                     "- Clearly different locations (different house colors, fencing, landscaping)\n"
-                    "- Different construction phases (new pour vs fully cured with sealant)\n"
+                    "- Different work phases (new installation vs completed)\n"
                     "- When in doubt, return -1 (it's better to create a new cluster than merge incorrectly)\n\n"
                     "STRICT RULES:\n"
-                    "- Only match if you're 60%+ confident it's the SAME physical location AND same concrete element\n"
-                    "- Location similarity alone isn't enough; the concrete type/finish must also match\n"
-                    "- Never match based solely on label similarity (a driveway photo shouldn't match just because both are driveways)\n"
+                    "- Only match if you're 60%+ confident it's the SAME physical location AND same work element\n"
+                    "- Location similarity alone isn't enough; the work type/finish must also match\n"
+                    "- Never match based solely on label similarity\n"
                     "- If the uncertain item shows a clearly different project or element type, return cluster_id: -1\n"
-                    "- Provide a specific, evidence-based reason (e.g., 'same stamped flagstone pattern and garage door' or 'different locations: fencing style doesn't match')"
+                    "- Provide a specific, evidence-based reason (e.g., 'same pattern and garage door' or 'different locations: fencing style doesn't match')"
                 ),
             },
             {
@@ -469,7 +470,7 @@ def match_uncertain_items_with_collage(
                             f"UNCERTAIN ITEM (ID: {uncertain_id}):\n"
                             f"The second image shows the uncertain item that needs matching.\n\n"
                             f"DECISION:\n"
-                            f"Does this uncertain item belong to any cluster in the collage based on location, concrete type, finish, and visual features?\n\n"
+                            f"Does this uncertain item belong to any cluster in the collage based on location, work type, finish, and visual features?\n\n"
                             f"OUTPUT:\n"
                             f"- cluster_id: the ID of the matching cluster, or -1 if no good match\n"
                             f"- confidence: 0.0-1.0 (must be ≥0.60 to match, otherwise return -1)\n"
