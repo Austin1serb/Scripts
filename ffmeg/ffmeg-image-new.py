@@ -449,8 +449,8 @@ def main():
     # Configuration
     config = {
         # General settings
-        "target_width": 1080,
-        "output_format": "webp",
+        "target_width": 1200,
+        "output_format": "jpg",
         "max_colors": None,  # Set to None for no color reduction
         # Transparency handling
         "preserve_transparency": False,

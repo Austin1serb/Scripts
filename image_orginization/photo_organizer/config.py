@@ -30,7 +30,7 @@ DEFAULT_ASSIGN_SINGLETONS = False  # Advanced mode with AI matching (experimenta
 #
 # 📁 PATHS & DIRECTORIES
 #
-IMAGE_DIR = "/Users/austinserb/Downloads/bellevue-wa"
+IMAGE_DIR = "/Users/austinserb/Desktop/rc-organized/driveway-star-bellevue"
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT_DIR = str(SCRIPT_DIR / "organized")
 
@@ -150,6 +150,15 @@ LABELS = [
 # Smart disambiguation: only add a surface noun when primary is generic
 GENERIC_PRIMARIES = {
     "decorative-concrete",
+    "concrete-driveway",
+    "concrete-patio",
+    "concrete-walkway",
+    "concrete-sidewalk",
+    "concrete-steps",
+    "concrete-wall",
+    "concrete-slab",
+    "concrete-retaining-wall",
+    "concrete-stamping",
     "concrete-repair",
     "concrete-resurfacing",
     "concrete-project",

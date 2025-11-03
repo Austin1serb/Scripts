@@ -15,7 +15,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from photo_organizer.ai_classification.collage import create_cluster_collage
+from photo_organizer.utils.collage import create_cluster_collage
 from photo_organizer.models import Item
 from PIL import Image
 

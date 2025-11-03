@@ -13,3 +13,6 @@ rapidfuzz>=3.0.0
 # Optional: OpenAI for ai_classification
 openai>=1.0.0
 python-dotenv>=1.0.0
+
+# Optional: Reverse geocoding for actual city names from GPS
+geopy>=2.3.0
