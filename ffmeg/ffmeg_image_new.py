@@ -11,6 +11,14 @@ class ImageCompressor:
         self.image_input_dir = os.path.join(self.current_dir, "image_input")
         self.output_dir = os.path.join(self.current_dir, "optimized_output")
 
+    def _add_metadata_handling(self, command: list):
+        """Add metadata handling based on config."""
+        if self.config.get("preserve_exif", False):
+            # Preserve EXIF and other profiles
+            command.extend(["+profile", "!iptc"])  # Keep all profiles except IPTC
+        else:
+            command.append("-strip")
+
     def _handle_transparency(self, command: list, input_path: str, output_format: str):
         """Add transparency handling to ImageMagick command."""
         # Check if we need to handle transparency
@@ -53,7 +61,6 @@ class ImageCompressor:
                 [
                     "-resize",
                     f"{self.config['target_width']}x>",
-                    "-strip",  # Remove metadata
                     "-quality",
                     f"{self.config['png_compression_level']}9",
                     "-define",
@@ -65,6 +72,9 @@ class ImageCompressor:
                 ]
             )
 
+            # Add metadata handling
+            self._add_metadata_handling(command)
+
             # Add color reduction if specified
             if self.config.get("max_colors"):
                 command.extend(["-colors", str(self.config["max_colors"])])
@@ -75,6 +85,8 @@ class ImageCompressor:
                     # Use PNG32 to preserve transparency with color reduction
                     command.extend(["-define", "png:color-type=6"])
 
+            # Force PNG output format (handles misnamed files)
+            command.extend(["-format", "png"])
             command.append(output_path)
             subprocess.run(command, check=True)
 
@@ -110,46 +122,94 @@ class ImageCompressor:
             return False
 
     def compress_jpeg(self, input_path: str, output_path: str) -> bool:
-        """Compress JPEG images with lossy compression."""
+        """Compress JPEG images with lossy compression. Also handles HEIC/HEIF conversion."""
         try:
+            # Check if input is HEIC/HEIF format by extension or by checking file type
+            input_ext = os.path.splitext(input_path)[1].lower()
+            is_heic = input_ext in [".heic", ".heif"]
+
+            # Also check actual file type if extension doesn't match (e.g., .jpg file that's actually HEIC)
+            if not is_heic:
+                try:
+                    result = subprocess.run(
+                        ["file", "-b", input_path],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    if "HEIF" in result.stdout or "HEIC" in result.stdout:
+                        is_heic = True
+                except Exception:
+                    pass  # file command might not be available
+
+            # For HEIC files, use ffmpeg for conversion (handles HEIC natively)
+            if is_heic:
+                # Use ffmpeg to convert HEIC to JPEG with compression and resizing
+                command = [
+                    "ffmpeg",
+                    "-i",
+                    input_path,
+                    "-vf",
+                    f"scale='min({self.config['target_width']},iw):-1'",  # Resize
+                    "-q:v",
+                    str(
+                        100 - self.config.get("jpeg_quality", 85)
+                    ),  # Quality (inverted scale)
+                    "-pix_fmt",
+                    "yuvj420p",  # Color space for JPEG
+                    "-y",  # Overwrite output
+                    output_path,
+                ]
+
+                subprocess.run(command, check=True, capture_output=True, text=True)
+                return True
+
+            # For regular JPEGs, use ImageMagick
             command = [
                 "magick",
                 input_path,
+                "-background",
+                self.config.get("background_color", "white"),
+                "-alpha",
+                "remove",
+                "-resize",
+                f"{self.config['target_width']}x>",
+                "-quality",
+                str(self.config.get("jpeg_quality", 85)),
+                "-sampling-factor",
+                "4:2:0",
+                "-interlace",
+                "Plane",
+                "-colorspace",
+                "sRGB",
             ]
 
-            # JPEG doesn't support transparency, so we must remove it
-            bg_color = self.config.get("background_color", "white")
-            command.extend(["-background", bg_color, "-alpha", "remove"])
-
-            command.extend(
-                [
-                    "-resize",
-                    f"{self.config['target_width']}x>",
-                    "-strip",
-                    "-quality",
-                    str(self.config.get("jpeg_quality", 85)),
-                    "-sampling-factor",
-                    "4:2:0",  # Chroma subsampling
-                    "-interlace",
-                    "Plane",  # Progressive JPEG
-                    "-colorspace",
-                    "sRGB",  # Ensure sRGB color space
-                ]
-            )
+            # Add metadata handling
+            self._add_metadata_handling(command)
 
             # Optional color reduction
             if self.config.get("max_colors"):
                 command.extend(["-colors", str(self.config["max_colors"])])
 
-            # Ensure output is JPEG
+            # Force JPEG format output
             command.extend(["-format", "jpeg"])
             command.append(output_path)
 
-            subprocess.run(command, check=True)
+            subprocess.run(command, check=True, capture_output=True, text=True)
             return True
 
         except subprocess.CalledProcessError as e:
             print(f"Error compressing JPEG: {e}")
+            if hasattr(e, "stderr") and e.stderr:
+                error_msg = (
+                    e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+                )
+                print(f"Error details: {error_msg}")
+            elif hasattr(e, "stdout") and e.stdout:
+                error_msg = (
+                    e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout
+                )
+                print(f"Output: {error_msg}")
             return False
 
     def compress_webp(self, input_path: str, output_path: str) -> bool:
@@ -167,7 +227,6 @@ class ImageCompressor:
                 [
                     "-resize",
                     f"{self.config['target_width']}x>",
-                    "-strip",
                     "-quality",
                     str(self.config.get("webp_quality", 80)),
                     "-define",
@@ -179,6 +238,9 @@ class ImageCompressor:
                 ]
             )
 
+            # Add metadata handling
+            self._add_metadata_handling(command)
+
             # WebP-specific transparency settings
             if self.config.get("preserve_transparency", True):
                 command.extend(["-define", "webp:alpha-quality=100"])
@@ -186,6 +248,8 @@ class ImageCompressor:
             if self.config.get("max_colors"):
                 command.extend(["-colors", str(self.config["max_colors"])])
 
+            # Force WebP output format (handles misnamed files)
+            command.extend(["-format", "webp"])
             command.append(output_path)
             subprocess.run(command, check=True)
             return True
@@ -209,7 +273,6 @@ class ImageCompressor:
                 [
                     "-resize",
                     f"{self.config['target_width']}x>",
-                    "-strip",
                     "-layers",
                     "Optimize",  # Optimize GIF frames
                     "-colors",
@@ -219,6 +282,9 @@ class ImageCompressor:
                 ]
             )
 
+            # Add metadata handling
+            self._add_metadata_handling(command)
+
             # Apply dithering for better quality with fewer colors
             command.extend(["-dither", "FloydSteinberg"])
 
@@ -226,6 +292,8 @@ class ImageCompressor:
             if self.config.get("preserve_transparency", True):
                 command.extend(["-dispose", "Background"])
 
+            # Force GIF output format (handles misnamed files)
+            command.extend(["-format", "gif"])
             command.append(output_path)
             subprocess.run(command, check=True)
             return True
@@ -249,7 +317,6 @@ class ImageCompressor:
                 [
                     "-resize",
                     f"{self.config['target_width']}x>",
-                    "-strip",
                     "-quality",
                     str(self.config.get("avif_quality", 50)),
                     "-define",
@@ -257,6 +324,11 @@ class ImageCompressor:
                 ]
             )
 
+            # Add metadata handling
+            self._add_metadata_handling(command)
+
+            # Force AVIF output format (handles misnamed files)
+            command.extend(["-format", "avif"])
             command.append(output_path)
             subprocess.run(command, check=True)
             return True
@@ -421,9 +493,18 @@ class ImageCompressor:
             f"Processing images. Output format: {self.config['output_format'].upper()}"
         )
         print(f"Output directory: {self.output_dir}")
-        print(
-            f"Transparency: {'Preserved' if self.config.get('preserve_transparency', True) else f'Removed (background: {self.config.get('background_color', 'white')})'}"
+
+        transparency_status = (
+            "Preserved"
+            if self.config.get("preserve_transparency", True)
+            else f"Removed (background: {self.config.get('background_color', 'white')})"
         )
+        print(f"Transparency: {transparency_status}")
+
+        exif_status = (
+            "Preserved" if self.config.get("preserve_exif", False) else "Removed"
+        )
+        print(f"EXIF metadata: {exif_status}")
 
         for filename in os.listdir(self.image_input_dir):
             file_path = os.path.join(self.image_input_dir, filename)
@@ -452,6 +533,8 @@ def main():
         "target_width": 1200,
         "output_format": "jpg",
         "max_colors": None,  # Set to None for no color reduction
+        # Metadata handling
+        "preserve_exif": True,  # Set to True to preserve EXIF metadata
         # Transparency handling
         "preserve_transparency": False,
         # PNG specific
