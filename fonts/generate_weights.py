@@ -9,7 +9,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 #    Update this list with your actual font file names.
 fonts = [
     # "Recoleta Alt Black.otf",
-    "cinzel-bold.ttf",
+    "batmanforever.ttf",
     # "Recoleta Alt Light.otf",
     # "Recoleta Alt Medium.otf",
     # "Recoleta Alt Regular.otf",

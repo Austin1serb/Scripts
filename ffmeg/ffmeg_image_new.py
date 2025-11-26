@@ -11,6 +11,34 @@ class ImageCompressor:
         self.image_input_dir = os.path.join(self.current_dir, "image_input")
         self.output_dir = os.path.join(self.current_dir, "optimized_output")
 
+        # Validate that only one dimension is specified
+        self._validate_dimensions()
+
+    def _validate_dimensions(self):
+        """Validate that only one of target_width or target_height is specified."""
+        has_width = self.config.get("target_width") is not None
+        has_height = self.config.get("target_height") is not None
+
+        if has_width and has_height:
+            raise ValueError(
+                "Cannot specify both target_width and target_height. Please choose only one."
+            )
+
+        if not has_width and not has_height:
+            raise ValueError("Must specify either target_width or target_height.")
+
+    def _get_resize_param(self) -> str:
+        """Get the appropriate resize parameter based on config."""
+        if self.config.get("target_width") is not None:
+            # Resize by width, maintain aspect ratio, only if larger
+            return f"{self.config['target_width']}x>"
+        elif self.config.get("target_height") is not None:
+            # Resize by height, maintain aspect ratio, only if larger
+            return f"x{self.config['target_height']}>"
+        else:
+            # Fallback (should not reach here due to validation)
+            return "1200x>"
+
     def _add_metadata_handling(self, command: list):
         """Add metadata handling based on config."""
         if self.config.get("preserve_exif", False):
@@ -18,6 +46,37 @@ class ImageCompressor:
             command.extend(["+profile", "!iptc"])  # Keep all profiles except IPTC
         else:
             command.append("-strip")
+
+    def _detect_actual_format(self, input_path: str) -> str:
+        """Detect the actual file format regardless of extension."""
+        try:
+            result = subprocess.run(
+                ["file", "-b", "--mime-type", input_path],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            mime_type = result.stdout.strip()
+
+            # Map MIME types to format names
+            mime_map = {
+                "image/heic": "heic",
+                "image/heif": "heic",
+                "image/jpeg": "jpeg",
+                "image/png": "png",
+                "image/webp": "webp",
+                "image/gif": "gif",
+                "image/avif": "avif",
+                "image/svg+xml": "svg",
+                "image/x-icon": "ico",
+                "image/bmp": "bmp",
+            }
+
+            return mime_map.get(mime_type, "unknown")
+        except Exception:
+            # Fallback to extension-based detection
+            ext = os.path.splitext(input_path)[1].lower().lstrip(".")
+            return ext if ext else "unknown"
 
     def _handle_transparency(self, command: list, input_path: str, output_format: str):
         """Add transparency handling to ImageMagick command."""
@@ -52,6 +111,7 @@ class ImageCompressor:
             command = [
                 "magick",
                 input_path,
+                "-auto-orient",  # Preserve correct orientation from EXIF
             ]
 
             # Handle transparency first
@@ -60,7 +120,7 @@ class ImageCompressor:
             command.extend(
                 [
                     "-resize",
-                    f"{self.config['target_width']}x>",
+                    self._get_resize_param(),
                     "-quality",
                     f"{self.config['png_compression_level']}9",
                     "-define",
@@ -122,58 +182,19 @@ class ImageCompressor:
             return False
 
     def compress_jpeg(self, input_path: str, output_path: str) -> bool:
-        """Compress JPEG images with lossy compression. Also handles HEIC/HEIF conversion."""
+        """Compress JPEG images with lossy compression."""
         try:
-            # Check if input is HEIC/HEIF format by extension or by checking file type
-            input_ext = os.path.splitext(input_path)[1].lower()
-            is_heic = input_ext in [".heic", ".heif"]
-
-            # Also check actual file type if extension doesn't match (e.g., .jpg file that's actually HEIC)
-            if not is_heic:
-                try:
-                    result = subprocess.run(
-                        ["file", "-b", input_path],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                    )
-                    if "HEIF" in result.stdout or "HEIC" in result.stdout:
-                        is_heic = True
-                except Exception:
-                    pass  # file command might not be available
-
-            # For HEIC files, use ffmpeg for conversion (handles HEIC natively)
-            if is_heic:
-                # Use ffmpeg to convert HEIC to JPEG with compression and resizing
-                command = [
-                    "ffmpeg",
-                    "-i",
-                    input_path,
-                    "-vf",
-                    f"scale='min({self.config['target_width']},iw):-1'",  # Resize
-                    "-q:v",
-                    str(
-                        100 - self.config.get("jpeg_quality", 85)
-                    ),  # Quality (inverted scale)
-                    "-pix_fmt",
-                    "yuvj420p",  # Color space for JPEG
-                    "-y",  # Overwrite output
-                    output_path,
-                ]
-
-                subprocess.run(command, check=True, capture_output=True, text=True)
-                return True
-
-            # For regular JPEGs, use ImageMagick
+            # Use ImageMagick for JPEG compression
             command = [
                 "magick",
                 input_path,
+                "-auto-orient",  # CRITICAL: Preserve correct orientation from EXIF
                 "-background",
                 self.config.get("background_color", "white"),
                 "-alpha",
                 "remove",
                 "-resize",
-                f"{self.config['target_width']}x>",
+                self._get_resize_param(),
                 "-quality",
                 str(self.config.get("jpeg_quality", 85)),
                 "-sampling-factor",
@@ -218,6 +239,7 @@ class ImageCompressor:
             command = [
                 "magick",
                 input_path,
+                "-auto-orient",  # Preserve correct orientation from EXIF
             ]
 
             # Handle transparency
@@ -226,7 +248,7 @@ class ImageCompressor:
             command.extend(
                 [
                     "-resize",
-                    f"{self.config['target_width']}x>",
+                    self._get_resize_param(),
                     "-quality",
                     str(self.config.get("webp_quality", 80)),
                     "-define",
@@ -272,7 +294,7 @@ class ImageCompressor:
             command.extend(
                 [
                     "-resize",
-                    f"{self.config['target_width']}x>",
+                    self._get_resize_param(),
                     "-layers",
                     "Optimize",  # Optimize GIF frames
                     "-colors",
@@ -316,7 +338,7 @@ class ImageCompressor:
             command.extend(
                 [
                     "-resize",
-                    f"{self.config['target_width']}x>",
+                    self._get_resize_param(),
                     "-quality",
                     str(self.config.get("avif_quality", 50)),
                     "-define",
@@ -370,7 +392,7 @@ class ImageCompressor:
                         ),
                         input_path,
                         "-resize",
-                        f"{self.config['target_width']}x>",
+                        self._get_resize_param(),
                         output_path.replace(".svg", ".png"),
                     ]
                     subprocess.run(command, check=True)
@@ -383,60 +405,76 @@ class ImageCompressor:
                 print(f"Error processing SVG: {e}")
                 return False
 
-    def extract_video_frame(
-        self, input_path: str, output_path: str, frame_number: int = 1
+    def compress_with_auto_detect(
+        self, input_path: str, output_path: str, output_format: str
     ) -> bool:
-        """Extract and compress a frame from video."""
-        try:
-            output_format = os.path.splitext(output_path)[1][1:].lower()
+        """
+        Compress an image with automatic format detection and intermediate conversion.
+        This method is designed for batch processing where you provide custom paths.
 
-            ffmpeg_command = [
-                "ffmpeg",
-                "-i",
-                input_path,
-                "-vf",
-                f"select='eq(n\\,{frame_number})',scale={self.config['target_width']}:-1",
-                "-vframes",
-                "1",
-            ]
+        Args:
+            input_path: Path to the input image file
+            output_path: Path where the compressed output should be saved
+            output_format: Desired output format (png, jpg, webp, etc.)
 
-            # Format-specific settings
-            if output_format == "png":
-                ffmpeg_command.extend(
-                    [
-                        "-compression_level",
-                        str(self.config.get("png_compression_level", 9)),
-                    ]
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Detect actual file format
+        file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
+        actual_format = self._detect_actual_format(input_path)
+
+        # Check if file format doesn't match extension (misnamed files only)
+        needs_conversion = False
+        if actual_format != file_ext and actual_format != "unknown":
+            # Only do intermediate conversion for misnamed files
+            needs_conversion = True
+        # ImageMagick can handle HEIC directly - no intermediate conversion needed!
+
+        # Convert to intermediate format if needed
+        intermediate_path = None
+        working_input = input_path
+
+        if needs_conversion:
+            try:
+                # Use a temp location near the output file
+                output_dir = os.path.dirname(output_path)
+                base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+                # Determine intermediate format
+                if self.config["output_format"].lower() in [
+                    "png",
+                    "webp",
+                    "gif",
+                    "avif",
+                ]:
+                    intermediate_ext = "png"
+                else:
+                    intermediate_ext = "jpg"
+
+                intermediate_path = os.path.join(
+                    output_dir, f"_temp_{base_name}.{intermediate_ext}"
                 )
-                # PNG transparency is preserved by default in ffmpeg
-            elif output_format in ["jpg", "jpeg"]:
-                ffmpeg_command.extend(
-                    ["-q:v", str(self.config.get("jpeg_quality", 85) // 10)]
+
+                # Convert to intermediate format
+                print(
+                    f"  Converting {actual_format.upper()} to intermediate {intermediate_ext.upper()} format..."
                 )
-            elif output_format == "webp":
-                ffmpeg_command.extend(
-                    ["-quality", str(self.config.get("webp_quality", 80))]
+
+                # Use ImageMagick for ALL conversions - SIMPLEST POSSIBLE COMMAND
+                # Just: magick input output
+                # This works for HEIC and all other formats without cropping
+                command = ["magick", input_path, intermediate_path]
+
+                subprocess.run(command, check=True, capture_output=True, text=True)
+
+                working_input = intermediate_path
+
+            except Exception as e:
+                print(
+                    f"Warning: Intermediate conversion failed ({e}), attempting direct compression"
                 )
-                if self.config.get("webp_lossless", False):
-                    ffmpeg_command.extend(["-lossless", "1"])
-
-            ffmpeg_command.append(output_path)
-            subprocess.run(ffmpeg_command, check=True)
-
-            # Apply format-specific post-processing
-            if output_format == "png" and self.config.get("use_pngquant", True):
-                self.compress_png(output_path, output_path)
-
-            return True
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error extracting video frame: {e}")
-            return False
-
-    def process_image(self, input_path: str, output_format: str) -> bool:
-        """Process a single image file."""
-        base_name = os.path.splitext(os.path.basename(input_path))[0]
-        output_path = os.path.join(self.output_dir, f"{base_name}.{output_format}")
+                working_input = input_path
 
         # Route to appropriate compression function
         format_handlers = {
@@ -450,26 +488,46 @@ class ImageCompressor:
         }
 
         handler = format_handlers.get(output_format.lower())
+        success = False
+
         if handler:
-            success = handler(input_path, output_path)
-            if success:
-                # Print file size comparison
-                original_size = os.path.getsize(input_path)
-                compressed_size = os.path.getsize(output_path)
-                reduction = (1 - compressed_size / original_size) * 100
-                print(
-                    f"Compressed: {os.path.basename(input_path)} -> {os.path.basename(output_path)}"
-                )
-                print(
-                    f"  Size: {original_size:,} -> {compressed_size:,} bytes ({reduction:.1f}% reduction)"
-                )
-            return success
+            success = handler(working_input, output_path)
         else:
             print(f"Unsupported output format: {output_format}")
-            return False
+
+        # Clean up intermediate file if it exists
+        if intermediate_path and os.path.exists(intermediate_path):
+            try:
+                os.remove(intermediate_path)
+            except Exception:
+                pass
+
+        return success
+
+    def process_image(self, input_path: str, output_format: str) -> bool:
+        """Process a single image file."""
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        output_path = os.path.join(self.output_dir, f"{base_name}.{output_format}")
+
+        # Use the auto-detect method for processing
+        success = self.compress_with_auto_detect(input_path, output_path, output_format)
+
+        if success:
+            # Print file size comparison
+            original_size = os.path.getsize(input_path)
+            compressed_size = os.path.getsize(output_path)
+            reduction = (1 - compressed_size / original_size) * 100
+            print(
+                f"Compressed: {os.path.basename(input_path)} -> {os.path.basename(output_path)}"
+            )
+            print(
+                f"  Size: {original_size:,} -> {compressed_size:,} bytes ({reduction:.1f}% reduction)"
+            )
+
+        return success
 
     def process_all(self):
-        """Process all images and videos in the input directory."""
+        """Process all images in the input directory."""
         image_extensions = (
             ".png",
             ".jpg",
@@ -482,7 +540,6 @@ class ImageCompressor:
             ".heic",
             ".ico",
         )
-        video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".flv")
 
         # Setup output directory
         if os.path.exists(self.output_dir):
@@ -493,6 +550,16 @@ class ImageCompressor:
             f"Processing images. Output format: {self.config['output_format'].upper()}"
         )
         print(f"Output directory: {self.output_dir}")
+
+        # Show which dimension is being used
+        if self.config.get("target_width"):
+            print(
+                f"Target dimension: Width = {self.config['target_width']}px (maintaining aspect ratio)"
+            )
+        elif self.config.get("target_height"):
+            print(
+                f"Target dimension: Height = {self.config['target_height']}px (maintaining aspect ratio)"
+            )
 
         transparency_status = (
             "Preserved"
@@ -512,39 +579,27 @@ class ImageCompressor:
             if filename.lower().endswith(image_extensions):
                 self.process_image(file_path, self.config["output_format"])
 
-            elif filename.lower().endswith(video_extensions):
-                base_name = os.path.splitext(filename)[0]
-                for i in range(self.config.get("frames_to_extract", 1)):
-                    output_path = os.path.join(
-                        self.output_dir,
-                        f"{base_name}-frame-{i+1}.{self.config['output_format']}",
-                    )
-                    self.extract_video_frame(
-                        file_path,
-                        output_path,
-                        i * self.config.get("frame_interval", 25),
-                    )
-
 
 def main():
     # Configuration
     config = {
-        # General settings
-        "target_width": 1200,
-        "output_format": "jpg",
-        "max_colors": None,  # Set to None for no color reduction
+        # General settings - USE ONLY ONE: target_width OR target_height (not both)
+        "target_width": 1200,  # Resize to this width, maintaining aspect ratio
+        "target_height": None,  # OR use this for height (e.g., 800 for tall images)
+        "output_format": "webp",
+        "max_colors": False,  # Set to None for no color reduction
         # Metadata handling
-        "preserve_exif": True,  # Set to True to preserve EXIF metadata
+        "preserve_exif": False,  # Set to True to preserve EXIF metadata
         # Transparency handling
         "preserve_transparency": False,
         # PNG specific
-        "png_compression_level": 4,  # 0-9
-        "use_pngquant": False,  # pngquant is a lossy compression tool
+        "png_compression_level": 9,  # 0-9
+        "use_pngquant": True,  # pngquant is a lossy compression tool
         "pngquant_quality": "65-80",  # 0-100
         # JPEG/JPG specific
         "jpeg_quality": 60,  # 0-100
         # WebP specific
-        "webp_quality": 40,  # 0-100 higher is better
+        "webp_quality": 75,  # 0-100 higher is better
         "webp_lossless": False,
         # GIF specific
         "gif_colors": 128,
@@ -552,9 +607,6 @@ def main():
         "avif_quality": 10,  # 0-100
         # SVG specific
         "convert_svg_to_png": False,
-        # Video frame extraction
-        "frames_to_extract": 1,
-        "frame_interval": 25,  # frames
     }
 
     compressor = ImageCompressor(config)
