@@ -158,8 +158,8 @@ def trim_and_optimize_video(
 
 if __name__ == "__main__":
     # Change these paths to match your file locations
-    input_video = current_dir + "/image_input/art-hero.mp4"
-    output_video = current_dir + "/optimized_output/art-hero-2.mp4"
+    input_path = current_dir + "/image_input" + "/zero-ui-recording.mov"
+    output_path = current_dir + "/optimized_output" + "/zero-ui-recording.webm"
 
     # Set the trimming parameters (e.g., start at 10 seconds, output 30 seconds long)
     start_time = "00:00:00"
@@ -168,8 +168,8 @@ if __name__ == "__main__":
     # duration = "00:00:9"
 
     trim_and_optimize_video(
-        input_video,
-        output_video,
+        input_path,
+        output_path,
         start_time,
         duration,
     )

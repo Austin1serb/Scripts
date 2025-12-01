@@ -1,0 +1,22 @@
+{
+  "name": "google",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx --env-file=.env kg-api.ts",
+    "start": "tsx --env-file=.env kg-api.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

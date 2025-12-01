@@ -584,14 +584,14 @@ def main():
     # Configuration
     config = {
         # General settings - USE ONLY ONE: target_width OR target_height (not both)
-        "target_width": 1200,  # Resize to this width, maintaining aspect ratio
+        "target_width": 512,  # Resize to this width, maintaining aspect ratio
         "target_height": None,  # OR use this for height (e.g., 800 for tall images)
-        "output_format": "webp",
+        "output_format": "png",
         "max_colors": False,  # Set to None for no color reduction
         # Metadata handling
         "preserve_exif": False,  # Set to True to preserve EXIF metadata
         # Transparency handling
-        "preserve_transparency": False,
+        "preserve_transparency": True,
         # PNG specific
         "png_compression_level": 9,  # 0-9
         "use_pngquant": True,  # pngquant is a lossy compression tool

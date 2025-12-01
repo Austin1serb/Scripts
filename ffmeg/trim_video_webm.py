@@ -98,7 +98,7 @@ def optimize_to_webm(
     vf_filter = ",".join(filters) if filters else None
 
     # ► Common I/O params ----------------------------------------------
-    io_opts = ["-y", "-hide_banner", "-loglevel", "error"]
+    io_opts = ["-y", "-hide_banner", "-stats"]  # show progress
     if start_time != "00:00:00":
         io_opts += ["-ss", start_time]
     if duration:
@@ -112,7 +112,7 @@ def optimize_to_webm(
         "-threads",
         str(max(1, threads)),
         "-speed",
-        "2" if preset == "realtime" else "1",
+        "4" if preset == "realtime" else "2",  # faster encoding (0=slowest, 5=fastest)
         "-deadline",
         preset,
         "-pix_fmt",
@@ -188,8 +188,8 @@ def optimize_to_webm(
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    input_path = current_dir + "/image_input" + "/text-bg.mp4"
-    output_path = current_dir + "/optimized_output" + "/text-bg.webm"
+    input_path = current_dir + "/image_input" + "/zero-ui-recording.mov"
+    output_path = current_dir + "/optimized_output" + "/zero-ui-recording.webm"
 
     optimize_to_webm(
         input_path=input_path,
@@ -201,6 +201,6 @@ if __name__ == "__main__":
         height=720,
         fps=30,
         crf=50,  # 0-63, 10 is good quality
-        preset="good",  #  good|realtime|best…
+        preset="veryfast",  #  good|realtime|best…
         target_bitrate="250k",  # used only if crf is None
     )
