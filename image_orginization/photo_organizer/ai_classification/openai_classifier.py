@@ -5,6 +5,13 @@ import tempfile
 import time
 from pathlib import Path
 from typing import List, Dict, Tuple
+from openai import OpenAI
+
+from ..config import API_RATE_LIMIT_DELAY
+from ..utils.collage import create_cluster_collage
+from .schemas import get_uncertain_match_schema
+from .utils import b64
+from ..utils.loading_spinner import Spinner
 
 from ..models import Item
 from ..config import (
@@ -359,13 +366,6 @@ def match_uncertain_items_with_collage(
 
         Result: {91: 5, 23: -1}  # singleton merges, hash_only stays separate
     """
-    from openai import OpenAI
-
-    from ..config import API_RATE_LIMIT_DELAY
-    from .collage import create_cluster_collage
-    from .schemas import get_uncertain_match_schema
-    from .utils import b64
-    from ..utils.loading_spinner import Spinner
 
     if not uncertain_items:
         print("No uncertain items to match.")

@@ -8,6 +8,7 @@ for each cluster so you can verify the labels make sense.
 
 import json
 from pathlib import Path
+from typing import Any
 
 from photo_organizer.config import DEFAULT_MODEL
 from photo_organizer.models import Item
@@ -89,7 +90,7 @@ print("=" * 70)
 print("AI CLASSIFICATION RESULTS")
 print("=" * 70)
 
-for i, group in enumerate(groups, 1):
+for i, group in enumerate[Any](groups, 1):
     example_id = group[0].id
     label_info = labels[example_id]
 
@@ -113,7 +114,7 @@ for i, group in enumerate(groups, 1):
 
 # Save full results to JSON with thumbnail paths
 results_for_json = {}
-for i, group in enumerate(groups, 1):
+for i, group in enumerate[Any](groups, 1):
     example_id = group[0].id
     label_info = labels[example_id]
 

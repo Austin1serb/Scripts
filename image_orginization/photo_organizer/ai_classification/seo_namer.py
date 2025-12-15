@@ -8,8 +8,8 @@ that naturally incorporates target SEO keywords.
 import base64
 import time
 from pathlib import Path
-from typing import List, Dict, Tuple
-from PIL import Image
+from typing import List, Dict
+
 
 from ..config import (
     LABELS,
