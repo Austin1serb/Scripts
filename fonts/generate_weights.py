@@ -9,7 +9,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 #    Update this list with your actual font file names.
 fonts = [
     # "Recoleta Alt Black.otf",
-    "batmanforever.ttf",
+    "HelveticaNowText-Light.woff2",
     # "Recoleta Alt Light.otf",
     # "Recoleta Alt Medium.otf",
     # "Recoleta Alt Regular.otf",
@@ -20,7 +20,7 @@ fonts = [
 # 2. Define the subset of characters you want to keep.
 #    Here, we keep digits 0-9 and basic punctuation from ASCII (space, !, #, etc.).
 #    Feel free to add or remove characters based on your needs.
-subset_chars = "Bespoke Tint&PPF"  # digits
+subset_chars = """!"',-.0123456789:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"""  # digits
 
 # 3. Loop through each font and run pyftsubset to generate a WOFF2 subset.
 for font_filename in fonts:

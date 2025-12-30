@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Semantic Flattener Tests</title>
+</head>
+
+<body>
+  <h1>Semantic Flattener Tests</h1>
+  <div id="summary" class="summary"></div>
+  <html lang="en">
+
+  <head>
+    <title>Semantic Flattener Tests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        background: #0a0a0a;
+        color: #e0e0e0;
+      }
+
+      h1 {
+        margin-bottom: 2rem;
+      }
+
+      .test {
+        border: 1px solid #333;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+      }
+
+      .test-header {
+        padding: 1rem;
+        background: #1a1a1a;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .test-name {
+        font-weight: 600;
+      }
+
+      .pass {
+        color: #4ade80;
+      }
+
+      .fail {
+        color: #f87171;
+      }
+
+      .test-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1px;
+        background: #333;
+      }
+
+      .test-body>div {
+        background: #0a0a0a;
+        padding: 1rem;
+      }
+
+      .test-body h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #888;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        font-family: 'SF Mono', Monaco, monospace;
+      }
+
+      .input-html {
+        background: #0f172a;
+      }
+
+      .expected {
+        background: #14532d;
+      }
+
+      .actual {
+        background: #1e1e1e;
+      }
+
+      .actual.mismatch {
+        background: #7f1d1d;
+      }
+
+      .summary {
+        padding: 1rem;
+        background: #1a1a1a;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        font-size: 1.25rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Semantic Flattener Tests</h1>
+    <div id="summary" class="summary"></div>
+    <div id="results"></div>
+
+    <!-- Hidden sandbox for rendering test HTML -->
+    <div id="sandbox" style="display: none;"></div>
+
+    <!-- Load the actual flattener (it exposes window.__flattenDOM) -->
+    <script src="../html-flatten.js"></script>
+    <script src="./test-cases.js"></script>
+    <script>
+      const flatten = window.__flattenDOM;
+      const sandbox = document.getElementById('sandbox');
+      const results = document.getElementById('results');
+      const summary = document.getElementById('summary');
+
+      let passed = 0;
+      let failed = 0;
+
+      function normalize(str) {
+        // Normalize whitespace for comparison
+        return str.replace(/\s+/g, ' ').trim();
+      }
+
+      TEST_CASES.forEach((tc, i) => {
+        sandbox.innerHTML = tc.input;
+        const actual = flatten(sandbox);
+        const isPass = normalize(actual) === normalize(tc.expected);
+
+        if (isPass) passed++;
+        else failed++;
+
+        const div = document.createElement('div');
+        div.className = 'test';
+        div.innerHTML = `
+        <div class="test-header">
+          <span class="test-name">${i + 1}. ${tc.name}</span>
+          <span class="${isPass ? 'pass' : 'fail'}">${isPass ? '✓ PASS' : '✗ FAIL'}</span>
+        </div>
+        <div class="test-body">
+          <div class="input-html">
+            <h4>Input HTML</h4>
+            <pre>${escapeHtml(tc.input)}</pre>
+          </div>
+          <div class="expected">
+            <h4>Expected</h4>
+            <pre>${escapeHtml(tc.expected)}</pre>
+          </div>
+          <div class="actual ${isPass ? '' : 'mismatch'}">
+            <h4>Actual</h4>
+            <pre>${escapeHtml(actual)}</pre>
+          </div>
+        </div>
+      `;
+        results.appendChild(div);
+      });
+
+      summary.innerHTML = `<strong>Results:</strong> <span class="pass">${passed} passed</span>, <span class="fail">${failed} failed</span> of ${TEST_CASES.length} tests`;
+
+      function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+    </script>
+  </body>
+
+  </html>
