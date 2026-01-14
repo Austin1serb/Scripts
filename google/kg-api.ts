@@ -1,8 +1,12 @@
-const KG_ENDPOINT = "https://kgsearch.googleapis.com/v1/entities:search"
+import { config as dotenvConfig } from "dotenv"
+import { join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
-if (!process.env.GOOGLE_KG_API_KEY) {
-  throw new Error("GOOGLE_KG_API_KEY is not set")
-}
+dotenvConfig({
+  path: join(resolve(fileURLToPath(import.meta.url), ".."), ".env"),
+})
+
+const KG_ENDPOINT = "https://kgsearch.googleapis.com/v1/entities:search"
 
 type KgEntity = {
   "@id"?: string
@@ -71,17 +75,28 @@ export async function getKgById(id: string, apiKey: string) {
   return items
 }
 
-const entities = await searchKg(
-  "Elon Musk",
-    process.env.GOOGLE_KG_API_KEY!,
-    50,
-   
-  )
+async function main() {
+  const apiKey = process.env.GOOGLE_KG_API_KEY
+  if (!apiKey) throw new Error("GOOGLE_KG_API_KEY is not set")
+
+  const entities = await searchKg("austin serb", apiKey, 50,["Person"])
   console.log(entities)
+}
+
+const isMain =
+  typeof process.argv[1] === "string" &&
+  resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
+
+if (isMain) {
+  main().catch((err) => {
+    console.error(err)
+    process.exitCode = 1
+  })
+}
 
 // // usage:
 // const entitiesID = await getKgById(
-//   "/g/11vf3xhd8w",
+//   "/g/11f9w2sjzj",
 //   process.env.GOOGLE_KG_API_KEY!
 // )
 

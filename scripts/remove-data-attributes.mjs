@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
 import fs from "fs"
-import path from "path"
-
 /**
  * Script to remove data-start={***} and data-end={***} attributes from MDX files
  * Usage: node scripts/remove-data-attributes.mjs <file-path>

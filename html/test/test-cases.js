@@ -413,4 +413,200 @@ const TEST_CASES = [
   <p>Click <button>here</button> to continue</p>
 </main>`,
   },
+  {
+    name:"Mobile with complex html",
+    input:`<div>
+  <div data-ui="global:reviews-modal(closed,open)"></div>
+  <div role="dialog" aria-modal="true" aria-label="Reviews">
+    <div>
+      <div>
+        <div>
+          <img alt="image-alt" loading="lazy" width="24" height="24" decoding="async" data-nimg="1" />
+          <h3>Overall Rating</h3>
+        </div>
+        <div>
+          <div>
+            <span>4.9</span>
+            <div>
+              ★★★★
+              <span>★</span>
+            </div>
+          </div>
+          <span>579 verified reviews</span>
+        </div>
+      </div>
+      <button type="button" data-ui="global:reviews-modal(closed,open)">Close</button>
+    </div>
+    <ul>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="Google reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="google-img" />
+          <div>
+            <div>
+              <img alt="mobile-google-img" />
+              <p>Google</p>
+            </div>
+            <div>
+              <span>4.9</span>
+              <div>
+                <div>
+                  <div>
+                    ★★★★
+                    <span>★</span>
+                  </div>
+                </div>
+                (207)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">Google rating 4.9 out of 5 based on 207 reviews.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="Yelp reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="yelp-img" />
+          <div>
+            <div>
+              <img alt="mobile-yelp-img" />
+              <p>Yelp</p>
+            </div>
+            <div>
+              <span>4.8</span>
+              <div>
+                <div>
+                  <div>
+                    ★★★★
+                    <span>★</span>
+                  </div>
+                </div>
+                (32)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">Yelp rating 4.8 out of 5 based on 32 reviews.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="Facebook reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="facebook-img" />
+          <div>
+            <div>
+              <img alt="mobile-facebook-img" />
+              <p>Facebook</p>
+            </div>
+            <div>
+              <span>5.0</span>
+              <div>
+                <div>
+                  <div>★★★★★</div>
+                </div>
+                (16)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">Facebook rating 5.0 out of 5 based on 16 reviews.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="Angi reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="angi-img" />
+          <div>
+            <div>
+              <img alt="mobile-angi-img" />
+              <p>Angi</p>
+            </div>
+            <div>
+              <span>5.0</span>
+              <div>
+                <div>
+                  <div>★★★★★</div>
+                </div>
+                (12)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">Angi rating 5.0 out of 5 based on 12 reviews.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="BBB reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="bbb-img" />
+          <div>
+            <div>
+              <img alt="mobile-bbb  -img" />
+              <p>BBB</p>
+            </div>
+            <p><span>A+ Rated</span></p>
+          </div>
+          <span class="sr-only">A+ Rated rated by the BBB.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="Birdeye reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="birdeye-img" />
+          <div>
+            <div>
+              <img alt="mobile-birdeye-img" />
+              <p>Birdeye</p>
+            </div>
+            <div>
+              <span>4.9</span>
+              <div>
+                <div>
+                  <div>
+                    ★★★★
+                    <span>★</span>
+                  </div>
+                </div>
+                (209)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">Birdeye rating 4.9 out of 5 based on 209 reviews.</span>
+        </a>
+      </li>
+      <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="TintFinder reviews (opens in a new tab)">
+          <svg>
+          </svg>
+          <img alt="tintfinder-img" />
+          <div>
+            <div>
+              <img alt="mobile-tintfinder--img" />
+              <p>TintFinder</p>
+            </div>
+            <div>
+              <span>4.9</span>
+              <div>
+                <div>
+                  <div>
+                    ★★★★
+                    <span>★</span>
+                  </div>
+                </div>
+                (103)
+              </div>
+            </div>
+          </div>
+          <span class="sr-only">TintFinder rating 4.9 out of 5 based on 103 reviews.</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+`,
+expected:``
+  }
 ];
