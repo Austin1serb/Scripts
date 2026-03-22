@@ -21,7 +21,6 @@ class BatchImageCompressor:
             ".bmp",
             ".gif",
             ".avif",
-            ".svg",
             ".heic",
             ".ico",
         )
@@ -173,13 +172,13 @@ def main():
     config = {
         # General settings - USE ONLY ONE: target_width OR target_height (not both)
         "target_width": None,  # Resize to this width, maintaining aspect ratio
-        "target_height": 1080,  # OR use this for height (e.g., 800 for tall images)
+        "target_height": 1240,  # OR use this for height (e.g., 800 for tall images)
         "output_format": "webp",
-        "max_colors": 1028,  # Set to None for no color reduction
+        "max_colors": None,  # Set to None for no color reduction
         # Metadata handling
-        "preserve_exif": True,  # Set to True to preserve EXIF metadata
+        "preserve_exif": False,  # Set to True to preserve EXIF metadata
         # Transparency handling
-        "preserve_transparency": False,
+        "preserve_transparency": True,
         # PNG specific
         "png_compression_level": 4,  # 0-9
         "use_pngquant": False,  # pngquant is a lossy compression tool
@@ -188,7 +187,7 @@ def main():
         "jpeg_quality": 65,  # 0-100
         # WebP specific
         "webp_quality": 65,  # 0-100 higher is better
-        "webp_lossless": False,
+        "webp_lossless": True,
         # GIF specific
         "gif_colors": 128,
         # AVIF specific
@@ -198,7 +197,7 @@ def main():
     }
 
     # Set your input path here
-    input_directory = "/Users/austinserb/Desktop/rc-concrete/public/projects/beautiful-large-driveway"  # Change this to your folder path
+    input_directory = "/Users/austinserb/Desktop/naughty-list/public"  # Change this to your folder path
 
     # Validate paths
     if not os.path.isdir(input_directory):

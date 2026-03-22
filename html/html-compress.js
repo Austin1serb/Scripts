@@ -1,6 +1,6 @@
 (function condenseHTML() {
 	// Remove all <script> elements
-	document.querySelectorAll("script").forEach((script) => script.remove());
+	// document.querySelectorAll("script").forEach((script) => script.remove());
 	document.querySelectorAll("svg").forEach((script) => script.remove());
 	// document.querySelectorAll("footer").forEach((footer) => footer.remove());
 	// document.querySelectorAll("nav").forEach((footer) => footer.remove());
@@ -15,23 +15,22 @@
 		// node.removeAttribute("class");
 		// node.removeAttribute("style");
 
-
 		// node.removeAttribute("id");
-		node.removeAttribute("srcset");
+		// node.removeAttribute("srcset");
 		// node.removeAttribute("href");
 		// node.removeAttribute("src");
-		node.removeAttribute("sizes");
-		node.removeAttribute("title");
-		node.removeAttribute("data-src");
-		node.removeAttribute("data-src-set");
-		node.removeAttribute("data-src-set");
+		// node.removeAttribute("sizes");
+		// node.removeAttribute("title");
+		// node.removeAttribute("data-src");
+		// node.removeAttribute("data-src-set");
+		// node.removeAttribute("data-src-set");
 		// Remove any other style-related attributes
-		const attrs = Array.from(node.attributes);
-		attrs.forEach((attr) => {
-			if (attr.name.startsWith("data-") || attr.name.includes("style")) {
-				node.removeAttribute(attr.name);
-			}
-		});
+		// const attrs = Array.from(node.attributes);
+		// attrs.forEach((attr) => {
+		// 	if (attr.name.startsWith("data-") || attr.name.includes("style")) {
+		// 		node.removeAttribute(attr.name);
+		// 	}
+		// });
 	});
 
 	// Remove all comments

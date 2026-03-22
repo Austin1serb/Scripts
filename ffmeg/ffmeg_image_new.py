@@ -584,22 +584,22 @@ def main():
     # Configuration
     config = {
         # General settings - USE ONLY ONE: target_width OR target_height (not both)
-        "target_width": 128,  # Resize to this width, maintaining aspect ratio
+        "target_width": 746,  # Resize to this width, maintaining aspect ratio
         "target_height": None,  # OR use this for height (e.g., 800 for tall images)
         "output_format": "png",
-        "max_colors": False,  # Set to None for no color reduction
+        "max_colors": None,  # Set to None for no color reduction
         # Metadata handling
         "preserve_exif": False,  # Set to True to preserve EXIF metadata
         # Transparency handling
         "preserve_transparency": True,
         # PNG specific
-        "png_compression_level": 9,  # 0-9
+        "png_compression_level": 2,  # 0-9
         "use_pngquant": True,  # pngquant is a lossy compression tool
-        "pngquant_quality": "65-80",  # 0-100
+        "pngquant_quality": "100",  # 0-100
         # JPEG/JPG specific
-        "jpeg_quality": 60,  # 0-100
+        "jpeg_quality": 90,  # 0-100
         # WebP specific
-        "webp_quality": 75,  # 0-100 higher is better
+        "webp_quality": 90,  # 0-100 higher is better
         "webp_lossless": False,
         # GIF specific
         "gif_colors": 128,
